@@ -211,3 +211,40 @@ export function heatBlueMap(direction = 'u') {
     ctx.fillRect(0, 0, w, h);
   });
 }
+
+// Procedural smudges/fingerprints for glossy surfaces. Use as a
+// clearcoatRoughnessMap or mixed into standard roughness.
+export function smudgeMap() {
+  return canvasTexture('smudge', 512, 512, (ctx, w, h) => {
+    // Base roughness
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, w, h);
+    
+    for (let i = 0; i < 400; i++) {
+      const x = Math.random() * w;
+      const y = Math.random() * h;
+      const r = 2 + Math.random() * 8;
+      
+      // Ellipses simulate fingerprint presses
+      const scaleX = 0.8 + Math.random() * 0.4;
+      const scaleY = 0.4 + Math.random() * 0.8;
+      const rotation = Math.random() * Math.PI;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      ctx.scale(scaleX, scaleY);
+      
+      const v = 40 + Math.floor(Math.random() * 60);
+      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      grad.addColorStop(0, `rgba(${v}, ${v}, ${v}, 0.3)`);
+      grad.addColorStop(1, `rgba(${v}, ${v}, ${v}, 0)`);
+      
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  });
+}

@@ -27,7 +27,7 @@ export function mountExplainer(def, container) {
     </div>
   `;
 
-  const stage = createStage(container.querySelector('.canvas-holder'));
+  const stage = createStage(container.querySelector('.canvas-holder'), def.stageOptions);
   const handles = def.buildScene({
     scene: stage.scene,
     stage,
