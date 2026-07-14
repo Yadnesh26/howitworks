@@ -110,6 +110,42 @@ skill — new models should use whatever presets it has already promoted to
 VALIDATED, but don't run its CANDIDATE experiments while building something
 new; build first, polish as its own pass.
 
+## Cinematography & mechanical motion (per-step direction)
+
+The machine loops on its own — the only "edit" the viewer ever experiences is
+the camera fly-to between steps. Direct those like a product film:
+
+- **Give every fly-to a shot type, never an arbitrary reframe.** Compose
+  consecutive step cameras as deliberate moves: a *hero arc* (orbit 30–60°
+  around the model between overview steps), a *macro push-in* (keep the
+  target, bring the position much closer, for one mechanism), a *tracking
+  move* (slide the target along the machine's axis to follow a flow/power
+  path). Two consecutive cameras that differ only trivially read as a glitch,
+  not a move.
+- **Frame off-centre (rule of thirds).** Put the step's point of interest on
+  a thirds intersection, not dead centre. The text panel owns the left ~38%
+  of the viewport — compose for the remaining right side, and verify framing
+  in review-shots screenshots, never in your head.
+- **Mass in the motion.** Continuous rotation stays `linear` (the seamless-
+  loop contract), but anything that starts, stops or engages carries inertia.
+  Shape it INSIDE the pose function / speed profile (cosine spin-up/down for
+  shafts, smoothstep travel for sliding parts) — not by switching anime.js
+  easings, since each loop is one linear tween.
+- **Anticipation → action → settle.** Before a discrete mechanical event (a
+  hammer falls, a sleeve engages, an idler slams home), pull back a fraction
+  first; after the event, settle with a tiny damped overshoot (1–2 % of
+  travel, ≤ 2 oscillations — machined parts don't wobble). Stagger secondary
+  parts a few percent of the lap behind the primary so nothing starts or
+  stops on the exact same frame.
+- **True pivots.** Parent every hinged/rotating part at its physical pivot
+  and pose it by rotation so paths are real arcs. Never lerp a position
+  between two poses of something that physically swings.
+
+Lighting and DoF are NOT per-explainer knobs: the stage owns the studio rig
+(HDRI env + key/rim lights + GTAO/bloom, `options.dof` for BokehPass). If a
+shot needs more, that's a polish-explainer pass — never scene lights in
+model.js (tiny emissive/point accents inside the model excepted, see gotchas).
+
 ## Interaction model (changed 2026-07: loops, not scroll-scrub)
 
 - **Every step's timeline runs as a seamless LOOP while that step is active**

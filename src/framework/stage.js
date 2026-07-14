@@ -33,11 +33,12 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 
 // Reusable 3D stage: renderer + camera + lights + soft-shadow floor.
 // Every explainer gets one; the player owns its lifecycle.
-export function createStage(container) {
+export function createStage(container, options = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(container.clientWidth, container.clientHeight);
@@ -165,6 +166,7 @@ export function createStage(container) {
   // the page.
   let composer = null;
   let gtao = null;
+  let bokehPass = null;
   try {
     composer = new EffectComposer(renderer);
     composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -172,6 +174,18 @@ export function createStage(container) {
     gtao = new GTAOPass(scene, camera, container.clientWidth, container.clientHeight);
     gtao.blendIntensity = 0.85;
     composer.addPass(gtao);
+    
+    if (options.dof) {
+      bokehPass = new BokehPass(scene, camera, {
+        focus: 1.0,
+        aperture: 0.0002,
+        maxblur: 0.006,
+        width: container.clientWidth,
+        height: container.clientHeight
+      });
+      composer.addPass(bokehPass);
+    }
+    
     const bloom = new UnrealBloomPass(
       new THREE.Vector2(container.clientWidth, container.clientHeight),
       0.16, // strength: a whisper, not a haze
@@ -222,6 +236,7 @@ export function createStage(container) {
     controls,
     composer,
     labelRenderer,
+    bokehPass,
     onTick(fn) {
       tickHandlers.add(fn);
       return () => tickHandlers.delete(fn);
