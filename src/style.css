@@ -229,13 +229,13 @@ code {
 .callout::before {
   content: '';
   position: absolute;
-  left: -3px;
-  top: -3px;
-  width: 6px;
-  height: 6px;
+  left: -4px;
+  top: -4px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--accent, #8fd3ff);
-  box-shadow: 0 0 8px var(--accent, #8fd3ff);
+  box-shadow: 0 0 12px var(--accent, #8fd3ff);
 }
 
 .callout-line {
@@ -250,14 +250,48 @@ code {
 .callout-text {
   position: absolute;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 18px; /* +50% from 12px */
   letter-spacing: 0.07em;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 3px 9px;
+  border-radius: 11px;
+  padding: 5px 14px; /* +50% from 3px 9px */
   backdrop-filter: blur(8px);
+}
+
+/* focus/highlight (#3): the active step's part pulses so it's unmistakable.
+   NB: never animate the pill's `transform` — labels.js sets it inline to
+   position the pill; a keyframe transform would override that and misplace it.
+   Pulse box-shadow/colour on the pill and scale the DOT (::before) instead. */
+.callout--active .callout-text {
+  border-color: var(--accent, #8fd3ff);
+  color: #fff;
+  animation: calloutActive 1.3s ease-in-out infinite;
+}
+@keyframes calloutActive {
+  0%,
+  100% {
+    box-shadow: 0 0 6px -1px var(--accent, #8fd3ff);
+  }
+  50% {
+    box-shadow: 0 0 16px 1px var(--accent, #8fd3ff);
+  }
+}
+.callout--active::before {
+  transform-origin: center;
+  animation: calloutDot 1.3s ease-in-out infinite;
+}
+@keyframes calloutDot {
+  0%,
+  100% {
+    box-shadow: 0 0 8px var(--accent, #8fd3ff);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 18px 3px var(--accent, #8fd3ff);
+    transform: scale(1.5);
+  }
 }
 
 .back-link {

@@ -31,7 +31,7 @@ export default defineExplainer({
       heading: 'The anatomy',
       body: 'A single-cylinder engine as it really looks: a finned cylinder barrel bolted to a crankcase, capped by the head with the spark plug on top and the flywheel spinning out the side. Scroll and the castings lift away to show the mechanism working inside.',
       hint: 'Drag to orbit · scroll to open it up.',
-      camera: { position: [3.8, 2.5, 5.4], target: [0, 1.5, 0] },
+      camera: { position: [4.4, 3.0, 6.4], target: [0, 1.85, 0] },
       onEnter: ({ handles }) => {
         handles.setReveal(0);
         handles.setLabels(true);

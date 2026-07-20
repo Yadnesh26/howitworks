@@ -19,7 +19,7 @@
 //   <format>-final.mp4     captioned + narration/sfx mixed (skipped if no audio)
 //   <format>-timeline.json shot → [start,end] seconds, for audio/caption sync
 import { chromium } from 'playwright';
-import { mkdirSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -111,8 +111,10 @@ const firstDolly = editorial?.[format]?.shots?.[0]?.dolly ?? baseDolly;
 await page.addInitScript((v) => { window.__hiwCameraScale = v; }, firstDolly);
 
 await page.goto(`http://localhost:${port}/#/${id}`);
-// generous: a cold vite server compiles three.js + the explainer chunk on first hit
-await page.waitForFunction(() => window.__hiw?.stepRuntimes?.length > 0, null, { timeout: 90000 });
+// generous: a cold vite server compiles three.js + the explainer chunk on first
+// hit, and the heaviest scenes (semi-auto-pistol) can take a while to build +
+// warm the D3D11 GPU path under headless
+await page.waitForFunction(() => window.__hiw?.stepRuntimes?.length > 0, null, { timeout: 180000 });
 // real-time wait: HDRI env map + lazy chunks arrive over the network
 await page.waitForTimeout(2000);
 
@@ -138,26 +140,64 @@ for (const s of shots) {
   }
 }
 
-// Narration is authoritative for pacing: when a shot's narration file exists,
-// extend the shot to fit the spoken audio plus a breath of air. (TTS engines
-// differ in speaking rate — never trust the seconds written in video.js.)
+// --- pacing ----------------------------------------------------------------
+// The AUDIO is the clock. Two modes:
+//   audio-master (preferred): make-narration.mjs wrote one continuous take
+//     (<format>-full.mp3) + per-shot timings (<format>-timings.json). Each
+//     shot is held for exactly its narration span; the camera fly-to overlaps
+//     the shot's opening words instead of sitting in silence; the single track
+//     plays straight through. Result: no inter-line gaps — one performance.
+//   legacy per-shot: no timings file — extend each shot to fit its own clip
+//     plus a breath (the old behavior, kept for back-compat / Edge fallback).
+const FLY_SECONDS = 1.6; // camera fly-to, captured as the first slice of a shot
+const LEAD_IN = 0.6; // silent beat over the hero before the voiceover starts
+const TAIL_PAD = 1.0; // hold after the final word
+const frameMs = 1000 / fps;
+
+const audioDir = join(outRoot, 'audio');
+const timingsPath = join(audioDir, `${format}-timings.json`);
+const fullAudioPath = join(audioDir, `${format}-full.mp3`);
+const continuous = existsSync(timingsPath) && existsSync(fullAudioPath);
+
 const audioSeconds = (file) => {
   const r = spawnSync(ffmpeg, ['-i', file, '-f', 'null', '-'], { encoding: 'utf8' });
   const m = /Duration: (\d+):(\d+):([\d.]+)/.exec(r.stderr ?? '');
   return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0;
 };
-for (const [si, shot] of shots.entries()) {
-  const seg = join(outRoot, 'audio', `${format}-shot-${String(si).padStart(2, '0')}.mp3`);
-  if (!existsSync(seg)) continue;
-  const need = audioSeconds(seg) + 0.8;
-  if (need > (shot.seconds ?? 8)) {
-    console.log(`  shot ${si}: extended ${shot.seconds ?? 8}s -> ${need.toFixed(1)}s to fit narration`);
-    shot.seconds = need;
+
+let narr = null; // audio-time { start, end } per shot index
+const shotDurations = []; // seconds each shot is on screen
+let audioDelay = 0; // when the continuous track starts on the video timeline
+
+if (continuous) {
+  narr = JSON.parse(readFileSync(timingsPath, 'utf8'));
+  audioDelay = LEAD_IN;
+  const lastIdx = shots.length - 1;
+  for (let i = 0; i < shots.length; i++) {
+    const startV = i === 0 ? 0 : LEAD_IN + (narr[i]?.start ?? narr[i - 1]?.end ?? 0);
+    const endV =
+      i === lastIdx
+        ? LEAD_IN + (narr[i]?.end ?? 0) + TAIL_PAD
+        : LEAD_IN + (narr[i + 1]?.start ?? narr[i]?.end ?? 0);
+    // floor so a very short beat still fits its fly-to + a moment of hold
+    shotDurations[i] = Math.max(FLY_SECONDS + 0.4, endV - startV);
+  }
+  const total = LEAD_IN + Math.max(...Object.values(narr).map((t) => t.end)) + TAIL_PAD;
+  console.log(`pacing: audio-master single-take — ${shots.length} shots, ~${total.toFixed(1)}s`);
+} else {
+  for (const [si, shot] of shots.entries()) {
+    let base = shot.seconds ?? 8;
+    const seg = join(audioDir, `${format}-shot-${String(si).padStart(2, '0')}.mp3`);
+    if (existsSync(seg)) {
+      const need = audioSeconds(seg) + 0.8;
+      if (need > base) {
+        console.log(`  shot ${si}: extended ${base}s -> ${need.toFixed(1)}s to fit narration`);
+        base = need;
+      }
+    }
+    shotDurations[si] = base;
   }
 }
-
-const FLY_SECONDS = 1.6; // camera fly-to between steps, captured as transition
-const frameMs = 1000 / fps;
 
 const advance = (ms) => page.evaluate((m) => window.__vt.advance(m), ms);
 
@@ -182,28 +222,39 @@ for (const [si, shot] of shots.entries()) {
   await setDolly(shot.dolly ?? baseDolly);
   await page.evaluate((n) => window.__hiw.activate(n), shot.step);
 
-  // capture the fly-to as a transition (except into the very first shot,
-  // which was already framed during warm-up)
-  const flyFrames = isFirst ? 0 : Math.round(FLY_SECONDS * fps);
-  const holdFrames = Math.round((shot.seconds ?? 8) * fps);
+  // One continuous span per shot. The fly-to (triggered by activate above)
+  // plays during the FIRST ~FLY_SECONDS of it — captured as part of the shot,
+  // never added on top — so lines butt up against each other with no silent
+  // camera-move gap between them.
+  const totalFrames = Math.round(shotDurations[si] * fps);
   const start = clock;
 
-  for (let f = 0; f < flyFrames + holdFrames; f++) {
+  for (let f = 0; f < totalFrames; f++) {
     await advance(frameMs);
-    // JPEG q92: ~3x faster than PNG per frame; invisible after x264 crf 18
+    // JPEG q98 (near-lossless) — ~3-4x faster to capture than PNG. At q98 the
+    // dark-gradient posterizing is negligible, and the encode-time `gradfun`
+    // deband (below) mops up any residual banding, so gradients stay smooth
+    // without paying PNG's capture cost.
     await page.screenshot({
       path: join(framesDir, `${String(frame).padStart(5, '0')}.jpg`),
-      quality: 92,
+      quality: 98,
     });
     frame++;
     clock += 1 / fps;
   }
 
+  // when this shot's spoken line / caption begins on the video timeline
+  const contentStart = continuous
+    ? isFirst
+      ? audioDelay
+      : start
+    : start + (isFirst ? 0 : FLY_SECONDS);
+
   timeline.push({
     shot: si,
     step: shot.step,
     start: Number(start.toFixed(3)),
-    contentStart: Number((start + flyFrames / fps).toFixed(3)),
+    contentStart: Number(contentStart.toFixed(3)),
     end: Number(clock.toFixed(3)),
     caption: shot.caption ?? null,
     narration: shot.narration ?? null,
@@ -228,7 +279,11 @@ run(
   [
     '-framerate', String(fps),
     '-i', join(framesDir, '%05d.jpg'),
-    '-c:v', 'libx264', '-preset', 'slow', '-crf', '18',
+    // gradfun debands smooth gradients by dithering them just before encode —
+    // targets the near-flat backdrop, not the whole frame, so no "sandy" grain.
+    // crf 16 (from 18) preserves that dither through x264's 8-bit quantization.
+    '-vf', 'gradfun=1.2:16',
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', '16',
     '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
     master,
   ],
@@ -239,7 +294,14 @@ console.log(`master: ${master} (${(frame / fps).toFixed(1)}s)`);
 // --- captions --------------------------------------------------------------
 // ASS burned via libass: auto-wraps, real outline, positioned per format.
 // Hook (editorial.hook) overlays the first 3s on shorts.
-const hasCaptions = timeline.some((t) => t.caption) || (format === 'short' && editorial?.hook);
+// Captions are OPT-IN (--captions). Default is a clean, narration-only video:
+// burned one-liner captions summarize rather than track the spoken words, so
+// they read as out of sync against the voiceover. The hook overlay burns in
+// the same pass, so it's opt-in too. (Silent -captioned.mp4 for trending-audio
+// posting is still produced when --captions is passed.)
+const wantCaptions = args.includes('--captions');
+const hasCaptions =
+  wantCaptions && (timeline.some((t) => t.caption) || (format === 'short' && editorial?.hook));
 let captioned = master;
 if (hasCaptions) {
   const short = format === 'short';
@@ -301,17 +363,24 @@ ${lines.join('\n')}
 }
 
 // --- audio mix --------------------------------------------------------------
-// Narration segments come from make-narration.mjs (renders/<id>/audio/
-// <format>-shot-NN.mp3); sfx cues reference assets/sfx/<name>.mp3.
-// Everything is optional — missing files are skipped, silent video still ships.
-const audioDir = join(outRoot, 'audio');
+// audio-master mode: one continuous take (<format>-full.mp3) dropped once at
+// LEAD_IN — the whole voiceover is a single input, so it plays exactly as it
+// was performed. legacy mode: per-shot files (<format>-shot-NN.mp3) delayed to
+// each shot's contentStart. sfx cues (assets/sfx/<name>.mp3) layer on either.
+// Everything optional — missing files skipped, silent video still ships.
 const inputs = [];
 const delays = [];
+if (continuous) {
+  inputs.push(fullAudioPath);
+  delays.push(Math.round(audioDelay * 1000));
+}
 for (const [si, t] of timeline.entries()) {
-  const seg = join(audioDir, `${format}-shot-${String(si).padStart(2, '0')}.mp3`);
-  if (existsSync(seg)) {
-    inputs.push(seg);
-    delays.push(Math.round(t.contentStart * 1000));
+  if (!continuous) {
+    const seg = join(audioDir, `${format}-shot-${String(si).padStart(2, '0')}.mp3`);
+    if (existsSync(seg)) {
+      inputs.push(seg);
+      delays.push(Math.round(t.contentStart * 1000));
+    }
   }
   for (const cue of t.sfx ?? []) {
     const f = resolve('assets/sfx', `${cue.file}.mp3`);
