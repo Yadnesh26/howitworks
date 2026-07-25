@@ -1,12 +1,12 @@
 ---
 name: export-content
-description: Export a howitworks explainer as publishable video content — a 9:16 captioned short and a 16:9 narrated long-form video. Use when the user asks to export/render/make a video, short, reel, or YouTube version of an explainer. Covers writing the editorial layer (hooks, captions, narration in video.js), the deterministic render pipeline (export-video.mjs), TTS narration, and quality review of the output.
+description: Export a howitworks explainer as publishable video content — a 9:16 short and a 16:9 narrated long-form video. Use when the user asks to export/render/make a video, short, reel, or YouTube version of an explainer. Covers writing the editorial layer (hooks, narration in video.js), the deterministic render pipeline (export-video.mjs), TTS narration, and quality review of the output.
 ---
 
 # Export an explainer as video content
 
 Turns `src/explainers/<id>/` into publishable MP4s. The render is free and
-repeatable — **the editorial layer (hook, captions, narration) is where views
+repeatable — **the editorial layer (hook, narration) is where views
 are won or lost.** Spend your effort there.
 
 ## Pipeline overview
@@ -20,8 +20,8 @@ are won or lost.** Spend your effort there.
 4. Review the output frames, fix, re-render
 
 Outputs land in `renders/<id>/`: `*-master.mp4` (silent, clean),
-`*-captioned.mp4` (captions burned), `*-final.mp4` (audio mixed, only if
-narration/sfx files exist), `*-timeline.json` (shot timings).
+`*-final.mp4` (audio mixed, only if narration/sfx files exist),
+`*-timeline.json` (shot timings).
 
 **Seamless audio (audio-master pacing).** `make-narration.mjs` synthesizes a
 format's ENTIRE narration in ONE ElevenLabs call (the `/with-timestamps`
@@ -43,6 +43,12 @@ SwiftShader (CPU) and frames cost ~1s instead of ~0.1-0.2s. Default 24fps.
 Different explainers can render in parallel (independent browser instances).
 
 ## Step 1 — write video.js
+
+**Structure the script with the `video-scripting` skill first.** It owns the
+editorial craft — the hook, the retention spine, the ABT connective tissue, the
+plant-and-close loop, the isolated stat, and the punchy button — and hands back
+a finished, read-aloud-tested script. Then write that script into `video.js` in
+the shape below.
 
 Copy the shape from `src/explainers/microwave-oven/video.js` (the reference for
 the current single-take + 8-beat approach). `seconds` per shot is now just a
@@ -68,12 +74,11 @@ one-fact-per-shot lines are what made earlier exports feel disconnected.
 8. *Powerful ending* — callback to beat 1, short and quotable.
 
 - **hook** (shorts, first 3s, top of frame): beat 1, under 12 words, `\n` for
-  line breaks. This is separate from the shot captions.
+  line breaks.
 - **short.shots**: ~70s (scale to module complexity — simpler ~50s, complex
   ~90s). **First shot shows the ENTIRE model** (establish, then zoom).
-  Wide/horizontal models need per-shot `dolly` (2.0+) to fit portrait. One
-  caption per shot, one line, concrete numbers. Shorts ARE narrated; the
-  silent `short-captioned.mp4` variant stays for posting with trending audio.
+  Wide/horizontal models need per-shot `dolly` (2.0+) to fit portrait. Shorts
+  ARE narrated.
 - **long.shots**: ~2min (scale to complexity), usually every step. `narration`
   is spoken prose — contractions, short sentences, second person, ~2.3 words/
   sec. Never paste the step body copy; it's written for reading, not listening.
@@ -97,18 +102,6 @@ neutral default is used. If the key is missing/invalid it falls back to free
 Edge TTS as per-shot files, and the export still works (just less seamless).
 Re-run this whenever the script changes, then re-run the export to re-mix.
 
-## Captions are OFF by default
-
-The user's standing preference is narration-only videos — burned one-liner
-captions summarize rather than track the spoken words, so they read as out of
-sync. `export-video.mjs` therefore skips the caption/hook burn unless you pass
-`--captions`; `-final.mp4` is built straight from the clean master. Still write
-`hook`/`caption` fields in video.js (they cost nothing and `--captions` re-
-enables them for a silent trending-audio cut), but the default deliverable has
-no burned text. NOTE: the in-scene 3D part-labels (CSS2D callouts on the parts)
-are separate scene content and still render — hiding those is a different
-change (add `.callout { display:none }` to the export's injected CSS).
-
 ## Step 3 — render
 
 ```
@@ -121,16 +114,14 @@ committing to a 30fps run.
 
 ## Step 4 — review before shipping (mandatory)
 
-Extract spot-check frames from the captioned output and LOOK at them:
+Extract spot-check frames from the final output and LOOK at them:
 
 ```
-node -e "const f=require('ffmpeg-static');const{execFileSync}=require('child_process');execFileSync(f,['-y','-i','renders/<id>/short-captioned.mp4','-vf','fps=1/5,scale=540:-1','renders/<id>/check-%02d.jpg'])"
+node -e "const f=require('ffmpeg-static');const{execFileSync}=require('child_process');execFileSync(f,['-y','-i','renders/<id>/short-final.mp4','-vf','fps=1/5,scale=540:-1','renders/<id>/check-%02d.jpg'])"
 ```
 
 Check every frame for:
 - **Framing**: subject fully in frame (portrait crops sides — fix with `dolly`)
-- **Caption legibility**: readable at phone size, not covering the subject,
-  hook not colliding with a caption
 - **Motion**: mechanism visibly moving in every shot (compare consecutive
   frames if unsure — frozen loops have shipped before)
 - **Long-form audio**: narration must not overrun its shot — if a segment
@@ -146,7 +137,8 @@ Fix in video.js, re-render. Ship only what you would post.
 - `flyTo` in player.js honors `window.__hiw.cameraScale`; the export script
   drives it via `dolly`. `window.__hiw.activate(i)` is the deterministic step
   driver — keep both when refactoring the player.
-- Captions burn via libass ASS subtitles with `fontsdir=C:/Windows/Fonts`;
-  ffmpeg runs with cwd = renders dir to dodge Windows path escaping.
+- The in-scene 3D part-labels (CSS2D callouts) are scene content and still
+  render in the export — to hide them, add `.callout { display:none }` to the
+  export's injected CSS.
 - Audio mix picks up `renders/<id>/audio/<format>-shot-NN.mp3` +
   `assets/sfx/*.mp3` cues; anything missing is skipped gracefully.

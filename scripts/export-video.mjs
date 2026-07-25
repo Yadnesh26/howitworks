@@ -293,35 +293,92 @@ console.log(`master: ${master} (${(frame / fps).toFixed(1)}s)`);
 
 // --- captions --------------------------------------------------------------
 // ASS burned via libass: auto-wraps, real outline, positioned per format.
-// Hook (editorial.hook) overlays the first 3s on shorts.
-// Captions are OPT-IN (--captions). Default is a clean, narration-only video:
-// burned one-liner captions summarize rather than track the spoken words, so
-// they read as out of sync against the voiceover. The hook overlay burns in
-// the same pass, so it's opt-in too. (Silent -captioned.mp4 for trending-audio
-// posting is still produced when --captions is passed.)
+// OPT-IN (--captions). Two sources, in priority order:
+//   VERBATIM RAIL (preferred) — make-narration wrote <format>-words.json, the
+//     ElevenLabs word-level alignment for the single take. We group the spoken
+//     words into short lower-third cues timed to WHEN THEY'RE ACTUALLY SAID, so
+//     the on-screen text matches the narrator's voice (the captions-overlay
+//     "rail" model). No summary text, no title card — the spoken words carry it.
+//   LEGACY SUMMARY (fallback, no words.json — e.g. Edge TTS with no alignment) —
+//     the per-shot `caption` one-liners plus the hook overlay, kept for
+//     back-compat. (Silent -captioned.mp4 for trending-audio posting is still
+//     produced whenever --captions is passed.)
 const wantCaptions = args.includes('--captions');
-const hasCaptions =
-  wantCaptions && (timeline.some((t) => t.caption) || (format === 'short' && editorial?.hook));
-let captioned = master;
-if (hasCaptions) {
-  const short = format === 'short';
-  const fontSize = short ? 72 : 54;
-  const marginV = short ? Math.round(viewport.height * 0.16) : 60;
-  const ts = (s) => {
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = (s % 60).toFixed(2).padStart(5, '0');
-    return `${h}:${String(m).padStart(2, '0')}:${sec}`;
+const short = format === 'short';
+const ts = (s) => {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = (s % 60).toFixed(2).padStart(5, '0');
+  return `${h}:${String(m).padStart(2, '0')}:${sec}`;
+};
+const esc = (t) => String(t).replace(/\n/g, '\\N');
+
+// Build the cue list on the VIDEO timeline: { start, end, text }.
+const wordsPath = join(audioDir, `${format}-words.json`);
+let cues = [];
+let hookLine = null; // top title card — legacy path only (non-verbatim)
+const HILITE = '&H00FFFF&'; // ASS BGR — bright yellow pop on the active word
+if (wantCaptions && existsSync(wordsPath)) {
+  const words = JSON.parse(readFileSync(wordsPath, 'utf8'));
+  // group verbatim words into readable, voice-synced phrase groups (1-4 words
+  // visible at once for shorts — the trending word-by-word rail shape)
+  const maxWords = short ? 4 : 7;
+  const maxChars = short ? 26 : 44;
+  const groups = [];
+  let grp = [];
+  const flush = () => {
+    if (!grp.length) return;
+    groups.push(grp);
+    grp = [];
   };
-  const esc = (t) => t.replace(/\n/g, '\\N');
-  const lines = [];
-  // shorts: hook on top-third for the first 3 seconds
-  if (short && editorial?.hook) {
-    lines.push(`Dialogue: 1,${ts(0)},${ts(3)},Hook,,0,0,0,,${esc(editorial.hook)}`);
+  for (const w of words) {
+    grp.push(w);
+    const len = grp.reduce((n, x) => n + x.t.length + 1, -1);
+    const hard = /[.?!]["')\]]?$/.test(w.t); // sentence end -> always break
+    const soft = /[,;:—]$/.test(w.t) && grp.length >= 2; // clause end
+    if (hard || soft || grp.length >= maxWords || len >= maxChars) flush();
   }
-  for (const t of timeline) {
-    if (!t.caption) continue;
-    lines.push(`Dialogue: 0,${ts(t.contentStart)},${ts(t.end)},Cap,,0,0,0,,${esc(t.caption)}`);
+  flush();
+  // audio starts at audioDelay. Each word in a group gets its own cue so the
+  // word being spoken pops in a highlight colour (karaoke-style), held until
+  // the next word begins; the group as a whole holds ~1s into a trailing pause.
+  const videoEnd = clock;
+  groups.forEach((g, gi) => {
+    const nextGroupStart = gi + 1 < groups.length ? groups[gi + 1][0].s + audioDelay : Infinity;
+    const groupEnd = Math.min(nextGroupStart, g[g.length - 1].e + audioDelay + 1.0, videoEnd);
+    g.forEach((w, i) => {
+      const start = w.s + audioDelay;
+      const nextWordStart = i + 1 < g.length ? g[i + 1].s + audioDelay : groupEnd;
+      const end = Math.max(Math.min(nextWordStart, groupEnd), start + 0.15);
+      const text = g
+        .map((x, j) => (j === i ? `{\\c${HILITE}}${esc(x.t)}{\\r}` : esc(x.t)))
+        .join(' ');
+      cues.push({ start, end, text });
+    });
+  });
+  console.log(`captions: verbatim rail — ${cues.length} word-synced cues from ${words.length} words (active-word highlight)`);
+} else if (wantCaptions) {
+  for (const t of timeline) if (t.caption) cues.push({ start: t.contentStart, end: t.end, text: esc(t.caption) });
+  if (short && editorial?.hook) hookLine = editorial.hook;
+  console.log(`captions: legacy summary — ${cues.length} cues${hookLine ? ' + hook' : ''} (no words.json)`);
+}
+
+let captioned = master;
+if (wantCaptions && (cues.length || hookLine)) {
+  // trending shorts/reels look: heavy black-weight font, bigger, active-word
+  // highlight pop, positioned center-ish (clear of the bottom platform-UI zone)
+  const fontName = 'Arial Black';
+  const fontSize = short ? 84 : 58;
+  // NOTE: true center (the usual shorts/reels convention) collides with this
+  // app's own callout labels, which float around the 3D model mid-frame —
+  // so both formats stay bottom-anchored, clear of them.
+  const alignment = 2;
+  const marginV = short ? Math.round(viewport.height * 0.15) : 60;
+  const lines = [];
+  // shorts (legacy only): hook on top-third for the first 3 seconds
+  if (hookLine) lines.push(`Dialogue: 1,${ts(0)},${ts(3)},Hook,,0,0,0,,${esc(hookLine)}`);
+  for (const c of cues) {
+    lines.push(`Dialogue: 0,${ts(c.start)},${ts(c.end)},Cap,,0,0,0,,${c.text}`);
   }
   const ass = `[Script Info]
 ScriptType: v4.00+
@@ -331,8 +388,8 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,Arial,${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,4,1,2,80,80,${marginV},1
-Style: Hook,Arial,${Math.round(fontSize * 1.2)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,8,80,80,${Math.round(viewport.height * 0.14)},1
+Style: Cap,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,${alignment},60,60,${marginV},1
+Style: Hook,${fontName},${Math.round(fontSize * 1.15)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,8,60,60,${Math.round(viewport.height * 0.14)},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

@@ -1,3 +1,5 @@
+import '@fontsource-variable/space-grotesk';
+import '@fontsource-variable/jetbrains-mono';
 import './style.css';
 import { engine as animeEngine } from 'animejs';
 import { loadExplainer, mountExplainer } from './framework/index.js';

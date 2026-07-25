@@ -15,63 +15,67 @@
 export default {
   hook: 'There’s a lightning storm\ninside this box.',
 
-  // 9:16 — ~70s. One take, 7 shots. Beat 6 (the stat) gets its own shot.
+  // 9:16 — ~70s. One take, 7 shots, built on the video-scripting spine:
+  // hook → stakes+promise → question → BUT/THEREFORE mechanism → isolated stat
+  // → so-what → callback button. "caged lightning" + "inside out" is the loop,
+  // planted in shots 1-2 and closed in the button (shot 7).
   short: {
     shots: [
       {
-        // 1. pattern interrupt + 2. curiosity hook
+        // Zone 1 — hook: boldest true claim, word one; matches the full-model shot
         step: 0,
         dolly: 2.1,
-        caption: 'No flame. Nothing touches it.',
+        caption: 'Nothing in here touches your food.',
         narration:
-          'There’s no flame in here. No hot coil, nothing that even touches your food — and yet, close the door, and it cooks in seconds.',
+          'Nothing in this box ever touches your food. No flame, no coil, no contact — yet it’ll boil a cup of water in about ninety seconds.',
       },
       {
-        // 3. spoken question
+        // Zone 2+3 — stakes + planted loop, then the spoken question
         step: 0,
         dolly: 2.1,
-        caption: 'So what’s actually doing the cooking?',
-        narration: 'So if nothing’s touching it, what on earth is doing the cooking?',
+        caption: 'So how — without touching anything?',
+        narration:
+          'Whatever’s doing it is basically caged lightning — and it cooks your food from the inside out. So how, without touching anything?',
       },
       {
-        // 4. reveal
+        // Zone 4a — reveal: name the part, define the jargon on first use
         step: 2,
         dolly: 1.45,
-        caption: 'This tube spins electrons in circles',
+        caption: 'It starts with a tube: the magnetron',
         narration:
-          'This. It’s a vacuum tube called a magnetron, and it does something genuinely wild — it takes electrons and whips them around in circles.',
+          'It starts with this tube — a magnetron. A wire inside gets so hot it boils electrons off into empty space.',
       },
       {
-        // 5. step-by-step (compressed) — hands off into the wave
+        // Zone 4b — BUT connective + universal analogy → the radio wave
         step: 2,
         dolly: 1.45,
-        caption: '…and that spits out a radio wave',
+        caption: 'Magnets ring it like a wine glass',
         narration:
-          'Magnets bend their path, they ring twelve little cavities like tuning forks, and out comes a radio wave — the same kind that carries Wi-Fi, just far more powerful.',
+          'But they don’t fly straight — two magnets bend them into loops. As they sweep past twelve little cavities, they set them ringing like a wet finger on a wine glass. That ringing is a radio wave — the same band as your Wi-Fi, thousands of times stronger.',
       },
       {
-        // 5b. the wave in the box
+        // Zone 4c — THEREFORE: trapped wave → hot/cold spots → why the plate spins
         step: 4,
         dolly: 1.7,
-        caption: 'It bounces into fixed hot and cold spots',
+        caption: 'It piles into hot and cold spots',
         narration:
-          'That wave floods the metal box and bounces off every wall, piling up into fixed hot spots and cold spots — which is exactly why the plate spins, to drag your food through all of them.',
+          'The wave floods the metal box and can’t escape, so it piles up — some spots turn blazing hot, others stay cold. That’s the whole reason the plate spins.',
       },
       {
-        // 6. mind-blowing stat — isolated on its own beat
+        // Zone 5 — the stat, isolated on its own beat with a re-hook
         step: 5,
         dolly: 1.6,
         caption: '2.5 BILLION flips per second',
         narration:
-          'And here’s the part that gets me. Your food is mostly water, and this wave grabs every water molecule and flips it back and forth two and a half billion times a second.',
+          'But here’s the part that gets me. Your food is mostly water — and this wave flips every water molecule back and forth two and a half billion times a second.',
       },
       {
-        // 7. real-world connection + 8. callback ending
+        // Zone 6+7 — so-what, then the callback button (closes the loop)
         step: 6,
         dolly: 2.1,
-        caption: 'That friction IS the heat.',
+        caption: 'The food cooks itself, from the inside out.',
         narration:
-          'All that frantic flipping is friction, and friction is heat — the food heats itself from the inside. No flame. Just a storm of invisible waves, and water that can’t sit still.',
+          'All that flipping is friction, and friction is heat — so the food cooks itself, from the inside out. It’s why dry food barely warms: no water, no wobble. No flame, no touch — just caged lightning, and water that can’t sit still.',
       },
     ],
   },

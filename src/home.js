@@ -1,4 +1,4 @@
-import { animate, createTimeline, stagger } from 'animejs';
+import { createTimeline, stagger } from 'animejs';
 import { getMetas } from './framework/index.js';
 import { categories, childrenOf, itemsIn, topLevel } from './categories.js';
 
@@ -77,7 +77,7 @@ export function mountHome(container, catId = null) {
                  .map((c) => `<span class="ch">${c === ' ' ? '&nbsp;' : c}</span>`)
                  .join('')}</h1>
                <p class="home-tag">${cat.blurb ?? ''}</p>`
-            : `<h1 id="home-title">${'howitworks'
+            : `<h1 id="home-title">${'whatDstuff'
                  .split('')
                  .map((c) => `<span class="ch">${c}</span>`)
                  .join('')}</h1>
@@ -122,13 +122,26 @@ export function mountHome(container, catId = null) {
     )
     .add('.home-foot', { opacity: [0, 0.7], duration: 600 }, 900);
 
+  // Cursor-follow 3D tilt. The `.tilt` class carries a short transform
+  // transition, so the card eases toward the pointer (a "magnetic" trail)
+  // and glides back to rest on leave. Skipped when the user prefers reduced
+  // motion — a plain lift is enough there.
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const MAX_TILT = 6; // degrees
   container.querySelectorAll('.ex-card').forEach((el) => {
-    el.addEventListener('mouseenter', () =>
-      animate(el, { scale: 1.02, duration: 350, ease: 'outQuad' }),
-    );
-    el.addEventListener('mouseleave', () =>
-      animate(el, { scale: 1, duration: 350, ease: 'outQuad' }),
-    );
+    if (reduceMotion) return;
+    el.addEventListener('mouseenter', () => el.classList.add('tilt'));
+    el.addEventListener('mousemove', (e) => {
+      const r = el.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5; // -0.5 … 0.5
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      el.style.transform =
+        `perspective(900px) rotateX(${(-py * MAX_TILT).toFixed(2)}deg) ` +
+        `rotateY(${(px * MAX_TILT).toFixed(2)}deg) translateY(-4px) scale(1.015)`;
+    });
+    el.addEventListener('mouseleave', () => {
+      el.style.transform = '';
+    });
   });
 
   return {

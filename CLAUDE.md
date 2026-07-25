@@ -47,7 +47,8 @@ assets, ever.
 
 1. **Use the skills.** New/reworked explainer → `add-explainer`; fidelity
    pass → `polish-explainer`; QA → `review-explainer` (run it via the
-   `explainer-reviewer` agent in a fresh context); video → `export-content`.
+   `explainer-reviewer` agent in a fresh context); video script/narration →
+   `video-scripting`; video render → `export-content`.
    They encode every hard-won convention — don't freelance the workflow.
    **Hard brakes:** the reviewer loop caps at 2 cycles (then findings go to
    the user); `polish-explainer` and video export run ONLY on explicit

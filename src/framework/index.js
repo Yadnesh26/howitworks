@@ -1,4 +1,4 @@
-// Public authoring API for howitworks explainers.
+// Public authoring API for whatDstuff explainers.
 export { defineExplainer, getMetas, getMeta, loadExplainer } from './registry.js';
 export { mountExplainer } from './player.js';
 export * as parts from './parts.js';

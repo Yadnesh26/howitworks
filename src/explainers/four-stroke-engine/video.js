@@ -18,7 +18,7 @@ export default {
         dolly: 1.85,
         caption: 'It runs on controlled explosions',
         narration:
-          'Your car doesn’t really run on fuel — it runs on thousands of tiny, controlled explosions, every single minute.',
+          'Your car doesn’t really run on fuel. It runs on thousands of tiny, controlled explosions, every single minute.',
       },
       {
         // 2. hook + 3. question
@@ -26,7 +26,7 @@ export default {
         dolly: 1.85,
         caption: 'One piston. Four simple moves.',
         narration:
-          'And it pulls them off with just one piston, sliding up and down, and four simple strokes. So how does a puff of fuel actually become motion?',
+          'And it pulls that off with just one piston, sliding up and down, in four simple strokes. So how does a puff of fuel become motion?',
       },
       {
         // 5. suck
@@ -34,7 +34,7 @@ export default {
         dolly: 1.4,
         caption: 'Intake — it inhales fuel and air',
         narration:
-          'First, it inhales. The piston drops like a syringe, a valve swings open, and it sucks in a fine mist of fuel and air.',
+          'First, it inhales. The piston drops like a syringe, a valve swings open, and a fine mist of fuel and air rushes in.',
       },
       {
         // squeeze
@@ -42,7 +42,7 @@ export default {
         dolly: 1.4,
         caption: 'Compression — squeezed tight',
         narration:
-          'Then both valves slam shut, and the piston squeezes that mist into a tiny, tense space — because the tighter you pack it, the harder it hits back.',
+          'Then both valves slam shut, and the piston squeezes that mist into a tiny, tense space. The tighter you pack it, the harder it hits back.',
       },
       {
         // bang + insight seed
@@ -50,7 +50,7 @@ export default {
         dolly: 1.4,
         caption: 'Power — the spark, the bang',
         narration:
-          'Now, the spark. The mixture detonates and blasts the piston down — and this, right here, is the only one of the four strokes that actually makes power.',
+          'Now, the spark. The mixture detonates and blasts the piston down. This is the only one of the four strokes that actually makes power.',
       },
       {
         // blow
@@ -58,7 +58,7 @@ export default {
         dolly: 1.4,
         caption: 'Exhaust — the burnt gas is pushed out',
         narration:
-          'The piston rises again and shoves the burnt gas out the back, leaving the cylinder empty and ready to do it all over again.',
+          'The piston rises again and shoves the burnt gas out the back, leaving the cylinder empty, ready to do it all over again.',
       },
       {
         // 6. isolated insight + 8. callback
@@ -66,7 +66,7 @@ export default {
         dolly: 1.85,
         caption: 'Only 1 of 4 strokes makes power',
         narration:
-          'Suck, squeeze, bang, blow. But since only one stroke makes power, a heavy flywheel coasts through the other three — turning a rhythm of explosions into smooth, endless spin.',
+          'Suck, squeeze, bang, blow. But only one stroke makes power, so a heavy flywheel coasts through the other three, turning a rhythm of explosions into smooth, endless spin.',
       },
     ],
   },
