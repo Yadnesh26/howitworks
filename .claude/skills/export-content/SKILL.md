@@ -15,9 +15,12 @@ are won or lost.** Spend your effort there.
 2. `node scripts/make-narration.mjs <id> --format short|long --voice <id>` —
    ElevenLabs TTS (needs `ELEVENLABS_API_KEY` in `.env`; the script loads it
    itself). Falls back to free Edge TTS if the key is unset/fails.
-3. `node scripts/export-video.mjs <id> --format short|long` — deterministic
-   frame render + ffmpeg
+3. `node scripts/export-video.mjs <id> --format short|long --captions` —
+   deterministic frame render + ffmpeg. **`--captions` is opt-in and you almost
+   always want it** — it is also what burns the title card and end card.
 4. Review the output frames, fix, re-render
+5. `node scripts/make-thumbnails.mjs <id>` — 16:9 cover plates (long-form)
+6. `node scripts/make-postkit.mjs <id>` — assembles `renders/<id>/POST.md`
 
 Outputs land in `renders/<id>/`: `*-master.mp4` (silent, clean),
 `*-final.mp4` (audio mixed, only if narration/sfx files exist),
@@ -105,12 +108,32 @@ Re-run this whenever the script changes, then re-run the export to re-mix.
 ## Step 3 — render
 
 ```
-node scripts/export-video.mjs <id> --format short --fps 30
-node scripts/export-video.mjs <id> --format long  --fps 30
+node scripts/export-video.mjs <id> --format short --fps 30 --captions
+node scripts/export-video.mjs <id> --format long  --fps 30 --captions
 ```
 
 Smoke-test new editorial at `--fps 10` first (renders ~3x faster) before
 committing to a 30fps run.
+
+**Overlays ride the caption pass.** Captions, the title card and the end card
+are burned in ONE libass pass (each burn is a full re-encode, so they must not
+cost extra passes). Consequence: no `--captions`, no overlays at all.
+
+- **Title card** — the explainer name, top-center, first 5 seconds, then it
+  clears so nothing competes with the mechanism and it cannot collide with the
+  CSS2D callouts floating mid-frame. The name is derived from `meta.js`
+  ("How a Refrigerator Works" → "REFRIGERATOR"); set `titleCard` in video.js
+  only when that derivation is wrong. Disable with `--no-title`.
+- **End card** — the closing share/funnel beat over the tail. It is scheduled
+  AFTER the last spoken caption wherever the tail allows, so it never fights
+  the voice rail. Override the copy with `endCard` (`\n` splits lines);
+  disable with `--no-endcard`.
+- **Loudness** — the final mix is normalized to ~-14 LUFS (`loudnorm`). Do not
+  remove this: an un-normalized export sounds thin next to the normalized feed
+  around it, which reads as amateur before a word is understood.
+- **`platforms`** — optional `{ youtube: {title, description, tags}, shorts:
+  {title, hashtags} }`, consumed by `make-postkit.mjs`. Author it with the
+  script, not at posting time.
 
 ## Step 4 — review before shipping (mandatory)
 

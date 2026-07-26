@@ -60,6 +60,28 @@ if (existsSync(videoJsPath)) {
   console.log('editorial: none (video.js missing) — rendering every step, 8s each');
 }
 
+// --- brand overlays: title card + end card --------------------------------
+// The name comes from meta.js (single source of truth for the library card),
+// compacted for screen: "How a Refrigerator Works" -> "REFRIGERATOR". A short
+// series-brand word reads at a glance; the full sentence does not. video.js can
+// override with `titleCard` when the derived form is wrong.
+const compactTitle = (t) =>
+  t
+    .replace(/^how\s+(a|an|the)\s+/i, '')
+    .replace(/\s+works?[.!]?$/i, '')
+    .trim();
+let metaTitle = null;
+const metaPath = resolve(`src/explainers/${id}/meta.js`);
+if (existsSync(metaPath)) {
+  metaTitle = (await import(pathToFileURL(metaPath))).default?.title ?? null;
+}
+const displayTitle =
+  editorial?.titleCard ?? (metaTitle ? compactTitle(metaTitle).toUpperCase() : null);
+// End card: the closing share/funnel beat. Overridable per explainer; `\n`
+// splits lines. Keep it short — it competes with nothing but it is on screen
+// for ~3s and long CTAs do not get read.
+const endCardText = editorial?.endCard ?? 'Share it with a curious mind\nhowitworks';
+
 // --- launch page with virtual clock --------------------------------------
 const framesDir = join(outRoot, `${format}-frames`);
 rmSync(framesDir, { recursive: true, force: true });
@@ -74,6 +96,9 @@ const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
 page.on('console', (m) => {
   if (m.type() === 'error') console.error(`[page error] ${m.text()}`);
 });
+// uncaught exceptions never reach the console handler above — without this a
+// boot failure looks like a bare waitForFunction timeout with no explanation
+page.on('pageerror', (e) => console.error(`[page exception] ${e.message}`));
 
 // Must be installed before any page script runs: replace the clock the whole
 // app animates on. Real timers (setTimeout/Interval) stay real — they only
@@ -114,7 +139,17 @@ await page.goto(`http://localhost:${port}/#/${id}`);
 // generous: a cold vite server compiles three.js + the explainer chunk on first
 // hit, and the heaviest scenes (semi-auto-pistol) can take a while to build +
 // warm the D3D11 GPU path under headless
-await page.waitForFunction(() => window.__hiw?.stepRuntimes?.length > 0, null, { timeout: 180000 });
+// polling MUST be an interval, never Playwright's default 'raf': the init
+// script above replaced requestAnimationFrame with a queue that only drains on
+// __vt.advance(), and advance() can't run until this wait resolves. Playwright
+// evaluates the predicate once immediately, then schedules every later poll via
+// rAF — so with the default the first (always-false) check is the ONLY check
+// and this deadlocks until timeout. Same rule for any waitForFunction added to
+// this file. (review-shots/verify/make-thumbnails don't stub rAF — they're fine.)
+await page.waitForFunction(() => window.__hiw?.stepRuntimes?.length > 0, null, {
+  timeout: 180000,
+  polling: 500,
+});
 // real-time wait: HDRI env map + lazy chunks arrive over the network
 await page.waitForTimeout(2000);
 
@@ -304,6 +339,12 @@ console.log(`master: ${master} (${(frame / fps).toFixed(1)}s)`);
 //     back-compat. (Silent -captioned.mp4 for trending-audio posting is still
 //     produced whenever --captions is passed.)
 const wantCaptions = args.includes('--captions');
+// title + end card ride the same single burn pass as captions (each burn is a
+// full re-encode, so they must not cost extra passes). Opt out individually.
+const wantTitle = wantCaptions && !args.includes('--no-title');
+const wantEndCard = wantCaptions && !args.includes('--no-endcard');
+const TITLE_SECONDS = 5;
+const ENDCARD_SECONDS = 3.5;
 const short = format === 'short';
 const ts = (s) => {
   const h = Math.floor(s / 3600);
@@ -363,8 +404,25 @@ if (wantCaptions && existsSync(wordsPath)) {
   console.log(`captions: legacy summary — ${cues.length} cues${hookLine ? ' + hook' : ''} (no words.json)`);
 }
 
+// Title holds for the first TITLE_SECONDS then clears, so nothing competes with
+// the mechanism and it can never collide with the CSS2D callouts that float
+// around the model mid-video.
+const videoDuration = clock;
+const titleText = wantTitle && displayTitle ? displayTitle : null;
+// The end card must never fight the voice rail: start it after the last spoken
+// word where the tail allows, otherwise claim the last 1.5s and accept overlap.
+let endCardStart = null;
+if (wantEndCard && endCardText) {
+  const lastCueEnd = cues.length ? Math.max(...cues.map((c) => c.end)) : 0;
+  endCardStart = Math.max(
+    videoDuration - ENDCARD_SECONDS,
+    Math.min(lastCueEnd + 0.15, videoDuration - 1.5),
+  );
+  if (endCardStart >= videoDuration - 0.4) endCardStart = null; // no room
+}
+
 let captioned = master;
-if (wantCaptions && (cues.length || hookLine)) {
+if (wantCaptions && (cues.length || hookLine || titleText || endCardStart != null)) {
   // trending shorts/reels look: heavy black-weight font, bigger, active-word
   // highlight pop, positioned center-ish (clear of the bottom platform-UI zone)
   const fontName = 'Arial Black';
@@ -374,7 +432,17 @@ if (wantCaptions && (cues.length || hookLine)) {
   // so both formats stay bottom-anchored, clear of them.
   const alignment = 2;
   const marginV = short ? Math.round(viewport.height * 0.15) : 60;
+  const titleMarginV = short ? Math.round(viewport.height * 0.09) : 54;
+  // when a title card is present the legacy hook drops below it instead of
+  // stacking on the same top-center anchor
+  const hookMarginV = titleText
+    ? titleMarginV + Math.round(fontSize * 2.2)
+    : Math.round(viewport.height * 0.14);
   const lines = [];
+  if (titleText) lines.push(`Dialogue: 2,${ts(0)},${ts(TITLE_SECONDS)},Title,,0,0,0,,${esc(titleText)}`);
+  if (endCardStart != null) {
+    lines.push(`Dialogue: 2,${ts(endCardStart)},${ts(videoDuration)},EndCard,,0,0,0,,${esc(endCardText)}`);
+  }
   // shorts (legacy only): hook on top-third for the first 3 seconds
   if (hookLine) lines.push(`Dialogue: 1,${ts(0)},${ts(3)},Hook,,0,0,0,,${esc(hookLine)}`);
   for (const c of cues) {
@@ -389,7 +457,9 @@ WrapStyle: 0
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Cap,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,${alignment},60,60,${marginV},1
-Style: Hook,${fontName},${Math.round(fontSize * 1.15)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,8,60,60,${Math.round(viewport.height * 0.14)},1
+Style: Hook,${fontName},${Math.round(fontSize * 1.15)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,8,60,60,${hookMarginV},1
+Style: Title,${fontName},${Math.round(fontSize * 0.92)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,4,0,1,5,1,8,60,60,${titleMarginV},1
+Style: EndCard,${fontName},${Math.round(fontSize * 0.85)},&H00FFFFFF,&H00FFFFFF,&H00000000,&HB4000000,-1,0,0,0,100,100,2,0,3,18,0,5,80,80,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -454,7 +524,14 @@ if (inputs.length) {
   const chains = inputs.map(
     (_, i) => `[${i + 1}:a]adelay=${delays[i]}|${delays[i]}[a${i}]`,
   );
-  const mix = `${chains.join(';')};${inputs.map((_, i) => `[a${i}]`).join('')}amix=inputs=${inputs.length}:normalize=0[out]`;
+  // amix preserves the authored per-input balance (normalize=0), then loudnorm
+  // brings the FINISHED mix to the streaming target. Without this the export
+  // lands well under platform loudness and sounds thin next to the normalized
+  // feed around it — which reads as amateur before a word is understood.
+  const mix =
+    `${chains.join(';')};${inputs.map((_, i) => `[a${i}]`).join('')}` +
+    `amix=inputs=${inputs.length}:normalize=0[mixed];` +
+    `[mixed]loudnorm=I=-14:TP=-1.5:LRA=11[out]`;
   run(
     [
       ...fin,
