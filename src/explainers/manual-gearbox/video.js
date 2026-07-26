@@ -21,13 +21,17 @@ export default {
   hook: 'Every gear in here is\nalready spinning.',
 
   // 9:16 — ~70s. 7 shots on the retention spine.
+  // A gearbox is the widest model in the library (case ~1.35x longer than
+  // tall), so portrait crops it hard: at the 1.35 default the case ran past
+  // BOTH frame edges and the callouts were sliced off at the left. Pull back.
   short: {
+    dolly: 2.0,
     shots: [
       {
         // 1. pattern interrupt — the counterintuitive claim, word one
         step: 0,
         seconds: 6,
-        dolly: 1.2,
+        dolly: 2.2, // whole-box shot — the widest framing needs the most pull-back
         caption: 'Every gear is already spinning.',
         narration:
           'Every gear inside this box is already spinning — before you ever touch the lever.',
@@ -76,7 +80,7 @@ export default {
         // 8. button — closes the opening loop
         step: 7,
         seconds: 10,
-        dolly: 1.2,
+        dolly: 2.2, // whole-box shot — the widest framing needs the most pull-back
         caption: 'You’re just catching up to a spinning gear.',
         narration:
           "So next time you shift, you're not grabbing a gear. You're catching up to one that was already spinning, this whole time.",
