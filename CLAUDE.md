@@ -48,11 +48,15 @@ assets, ever.
 1. **Use the skills.** New/reworked explainer → `add-explainer`; fidelity
    pass → `polish-explainer`; QA → `review-explainer` (run it via the
    `explainer-reviewer` agent in a fresh context); video script/narration →
-   `video-scripting`; video render → `export-content`.
+   `video-scripting`; video render → `export-content`; the whole chain in one
+   unattended run → `explainer-to-video` (via the `explainer-pipeline` agent).
    They encode every hard-won convention — don't freelance the workflow.
    **Hard brakes:** the reviewer loop caps at 2 cycles (then findings go to
    the user); `polish-explainer` and video export run ONLY on explicit
-   user request — never auto-chained after a build.
+   user request — never auto-chained after a build. The ONE carve-out:
+   invoking `explainer-to-video` is itself that explicit request, and
+   authorizes the build→verify→review→script→render chain for that run only.
+   It never authorizes `polish-explainer`.
 2. **One folder per explainer, zero registration.** `id` === folder name; the
    registry globs it. Never static-import an explainer from shared code: if
    `vite build` stops emitting `dist/assets/<id>-*.js`, the lazy split broke
