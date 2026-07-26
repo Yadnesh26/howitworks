@@ -241,7 +241,10 @@ export function buildGearbox({ scene }) {
     mat,
   ) {
     const pr = pitchR ?? teeth * MODULE_R;
-    const mesh = gear({ teeth, radius: pr + depth / 2, toothDepth: depth, thickness, holeR }, mat);
+    // OWN material per gear: the power-path highlight tints only the pair that
+    // is actually driving, and a shared material instance would light the whole
+    // box at once. Cheap here — these are already separate meshes.
+    const mesh = gear({ teeth, radius: pr + depth / 2, toothDepth: depth, thickness, holeR }, mat.clone());
     if (hand) twistGeo(mesh.geometry, hand * (HELIX_SHIFT / pr));
     const holder = new THREE.Group();
     holder.rotation.y = Math.PI / 2;
@@ -477,10 +480,12 @@ export function buildGearbox({ scene }) {
     shaft.position.x = -1.02;
     clusterAsm.add(shaft);
   }
+  const layGears = {};
   for (const k of ['in', 'g3', 'g2', 'g1', 'g5']) {
     const lg = axGear({ teeth: PAIRS[k].Nl, hand: 1 }, gearSteel);
     lg.holder.position.x = PAIRS[k].x;
     clusterAsm.add(lg.holder);
+    layGears[k] = lg; // kept so the power path can light the driving gear
   }
   const layRev = axGear({ teeth: REV.Nlay, thickness: 0.1 }, gearSteel); // spur
   layRev.holder.position.x = REV.x;
@@ -513,7 +518,7 @@ export function buildGearbox({ scene }) {
     const pr = p.Nm * MODULE_R;
     const g = gear(
       { teeth: p.Nm, radius: pr + TOOTH_D / 2, toothDepth: TOOTH_D, thickness: GEAR_T, holeR: 0.058 },
-      gearSteel,
+      gearSteel.clone(), // own material — see axGear
     );
     twistGeo(g.geometry, -HELIX_SHIFT / pr);
     spinner.add(g);
@@ -540,7 +545,7 @@ export function buildGearbox({ scene }) {
     cone.castShadow = true;
     spinner.add(cone);
     group.add(holder);
-    speedGears[key] = { holder, spinner, dogX: p.x + dogSide * (GEAR_T / 2 + 0.055) };
+    speedGears[key] = { holder, spinner, mesh: g, dogX: p.x + dogSide * (GEAR_T / 2 + 0.055) };
   }
   speedGear('g3', -1); // 3-4 hub sits in front of 3rd
   speedGear('g2', 1); //  1-2 hub sits behind 2nd
@@ -750,7 +755,7 @@ export function buildGearbox({ scene }) {
   marchPath(0);
 
   // --- callouts ----------------------------------------------------------------------
-  const setsOf = { exterior: [], internal: [], mesh: [], synchro: [] };
+  const setsOf = { exterior: [], internal: [], mesh: [], synchro: [], torque: [], rails: [] };
   function addCallout(set, parent, text, offset, dir, len) {
     const c = callout(text, { dir, len });
     c.position.set(...offset);
@@ -760,18 +765,37 @@ export function buildGearbox({ scene }) {
   }
   addCallout('exterior', caseMeshes[0], 'Cast-aluminium case', [0.1, 0.55, 0.35], 90, 54);
   addCallout('exterior', knob, 'Shift lever', [0, 0.06, 0], 30, 60);
-  addCallout('exterior', group, 'Bellhousing — bolts to the engine', [-1.3, 0.95, 0.3], -150, 70);
-  addCallout('exterior', group, 'Input shaft — from the clutch', [-1.26, 1.6, 0.07], 160, 76);
-  addCallout('exterior', group, 'Output flange — to the driveshaft', [1.62, 1.44, 0.1], -20, 66);
+  addCallout('exterior', group, 'Bellhousing — bolts to the engine', [-1.3, 0.95, 0.3], 0, 90);
+  addCallout('exterior', group, 'Input shaft — from the clutch', [-1.26, 1.6, 0.07], 15, 95);
+  addCallout('exterior', group, 'Output flange — to the driveshaft', [1.62, 1.44, 0.1], 200, 60);
 
-  addCallout('internal', group, 'Input gear', [PAIRS.in.x, 1.86, 0.1], 120, 56);
+  addCallout('internal', group, 'Input gear', [PAIRS.in.x, 1.86, 0.1], 45, 90);
   addCallout('internal', group, 'Layshaft — one rigid cluster', [-0.1, 0.56, 0.3], -60, 64);
   addCallout('internal', group, 'Mainshaft', [1.34, 1.68, 0.05], 55, 50);
   addCallout('internal', group, '1st gear pair — 15 : 35 teeth', [0.56, 2.06, 0.1], 75, 56);
   addCallout('internal', group, 'Synchro sleeve (1st-2nd)', [HUBS.h12, 1.3, 0.28], -35, 66);
-  addCallout('internal', group, 'Reverse idler', [REV.x + 0.32, IDLER_Y + 0.2, IDLER_Z], 15, 58);
-  addCallout('internal', group, 'Shift rails & forks', [-0.4, 1.96, 0.05], 105, 60);
-  addCallout('internal', group, 'Output flange', [1.62, 1.44, 0.1], -20, 60);
+  // attached to idlerGrp (not the static 'group') so the leader tracks the
+  // idler as it slides between disengaged (IDLER_OUT_X) and engaged (REV.x) —
+  // a fixed world anchor pointed at empty space once the gear moved away.
+  addCallout('internal', idlerGrp, 'Reverse idler', [0, 0.2, 0], 15, 58);
+  addCallout('internal', group, 'Shift rails & forks', [-0.4, 1.96, 0.05], 75, 90);
+  addCallout('internal', group, 'Output flange', [1.62, 1.44, 0.1], -20, 20);
+
+  // 'torque' step: the ratio IS the lesson, so name both gears of the working
+  // pair with their tooth counts. This step previously ran with labels OFF —
+  // the one step about counting teeth showed no teeth counts at all.
+  addCallout('torque', group, '15-tooth pinion — cluster', [PAIRS.g1.x, LAY_Y - 0.24, 0.26], -62, 78);
+  addCallout('torque', group, '35-tooth gear — mainshaft', [PAIRS.g1.x, MAIN_Y + 0.42, 0.1], 68, 80);
+  // short copy + a downward leader: anchored high and right this ran off the
+  // frame edge (the visibility gate passed it at 34% hidden — eyes caught it)
+  addCallout('torque', group, '3.5 in · 1 out', [1.24, 1.34, 0.06], -34, 66);
+
+  // 'rails' step looks DOWN on the box, where the crowded 'internal' set is
+  // mostly edge-on and unreadable. Sparse set anchored on what that vantage
+  // actually shows: the rails, the fork, and the sleeve it drags.
+  addCallout('rails', group, 'Shift rails', [-0.4, 1.96, 0.05], 75, 90);
+  addCallout('rails', group, 'Fork — rides the sleeve groove', [HUBS.h12, 1.92, 0.22], 18, 96);
+  addCallout('rails', group, 'Sleeve — splined to the mainshaft', [HUBS.h12, 1.5, 0.34], -42, 92);
 
   // 'mesh' step (constant-mesh concept) gets its OWN sparse pair — the full
   // 'synchro' set below is tuned for step 5's tight macro and crowds/peeks
@@ -779,17 +803,58 @@ export function buildGearbox({ scene }) {
   addCallout('mesh', group, 'Gears freewheel on the shaft', [-0.02, 1.98, 0.12], 105, 62);
   addCallout('mesh', group, 'Dog teeth — the shaft’s only grip', [speedGears.g1.dogX, 1.7, 0.12], 35, 62);
 
-  addCallout('synchro', group, 'Sleeve — splined to the shaft', [HUBS.h12, 1.83, 0.05], 100, 62);
+  addCallout('synchro', group, 'Sleeve — splined to the shaft', [HUBS.h12, 1.83, 0.05], 80, 90);
   addCallout('synchro', group, 'Brass blocker ring', [HUBS.h12 - 0.085, 1.44, 0.15], -45, 70);
   addCallout('synchro', group, 'Dog teeth', [speedGears.g1.dogX, 1.74, 0.08], 40, 54);
   addCallout('synchro', group, '2nd gear — freewheeling', [0.0, 1.95, 0.08], 135, 62);
-  addCallout('synchro', group, 'Friction cone', [speedGears.g2.dogX + 0.04, 1.42, 0.14], -130, 62);
+  addCallout('synchro', group, 'Friction cone', [speedGears.g2.dogX + 0.04, 1.42, 0.14], -20, 90);
 
   // --- pose -------------------------------------------------------------------------
   // Everything derives from (layshaft angle, mainshaft angle, sleeve throws,
   // idler engagement). Speed gears ALWAYS follow the layshaft — they are never
   // disconnected; that is the constant-mesh fact the explainer hangs on.
   const state = { s12: 0, s34: 0, s5: 0, idler: 0, ringGlow: 0, ringKey: null };
+
+  // --- power path highlight -----------------------------------------------------------
+  // "Which gears are carrying the drive RIGHT NOW?" was unanswerable from the
+  // picture: every gear is the same steel, so a 15-tooth pinion driving a
+  // 35-tooth wheel read as two identical discs and the whole speed-for-torque
+  // trade was invisible. The pair actually under load now glows; the rest of
+  // the box stays dull, so the eye follows the torque instead of hunting.
+  const PATH_HOT = 0xffa23a;
+  const litMeshes = [];
+  function litClear() {
+    for (const m of litMeshes) {
+      m.material.emissive.setHex(0x000000);
+      m.material.emissiveIntensity = 0;
+    }
+    litMeshes.length = 0;
+  }
+  function lit(mesh) {
+    if (!mesh) return;
+    mesh.material.emissive.setHex(PATH_HOT);
+    mesh.material.emissiveIntensity = 0.6;
+    litMeshes.push(mesh);
+  }
+  // '1'|'2'|'3'|'5' forward pair · '4' direct · 'R' reverse · null/'N' off
+  function setPowerHighlight(gearName) {
+    litClear();
+    if (!gearName || gearName === 'N') return;
+    // the constant-mesh input pair carries drive in every gear but neutral
+    lit(inputGear.mesh);
+    lit(layGears.in.mesh);
+    if (gearName === '4') return; // direct drive: input locks to output, no pair works
+    if (gearName === 'R') {
+      lit(layRev.mesh);
+      lit(idler.mesh);
+      lit(revMain.mesh);
+      return;
+    }
+    const k = { 1: 'g1', 2: 'g2', 3: 'g3', 5: 'g5' }[gearName];
+    if (!k) return;
+    lit(layGears[k].mesh);
+    lit(speedGears[k].mesh);
+  }
 
   function applyGears(lay) {
     clusterAsm.rotation.x = lay;
@@ -831,6 +896,7 @@ export function buildGearbox({ scene }) {
           ? 0
           : fwdTheta({ 1: 'g1', 2: 'g2', 3: 'g3', 5: 'g5' }[gearName], lay);
     applySleeves();
+    setPowerHighlight(gearName);
     if (pathOn) marchPath(layTurns * 0.35);
   }
 
@@ -874,6 +940,9 @@ export function buildGearbox({ scene }) {
     inputAsm.rotation.x = inputTheta(lay);
     mainAsm.rotation.x = C_FWD.g1 + shiftMainRate * u;
     applySleeves();
+    // the glow follows the handshake: 1st drops out, nothing drives through the
+    // blocker-ring window, 2nd picks it up — the shift made visible
+    setPowerHighlight(state.s12 > 0.6 ? '1' : state.s12 < -0.6 ? '2' : null);
   }
 
   // -- reverse: box stops, idler slides in, everything runs backwards ------------------
@@ -894,6 +963,7 @@ export function buildGearbox({ scene }) {
     inputAsm.rotation.x = inputTheta(lay);
     mainAsm.rotation.x = revMainTheta(lay);
     applySleeves();
+    setPowerHighlight(state.idler > 0.5 ? 'R' : null);
   }
 
   // -- finale, case closed: up through all five gears ----------------------------------
@@ -952,6 +1022,9 @@ export function buildGearbox({ scene }) {
     state.s5 = 0;
     state.idler = 0;
     applySleeves();
+    // pin the highlight too — otherwise whichever pair was lit by the previous
+    // step stays lit under the closed case and leaks back out on scroll-up
+    setPowerHighlight(String(u >= G_SPAN * 5 ? 5 : gearAt(u)));
   }
 
   // -- layer + label switches ------------------------------------------------------------
