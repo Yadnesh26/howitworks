@@ -376,6 +376,15 @@ export function buildEngine({ scene }) {
   addCallout(internalCallouts, conRod, 'Connecting rod', [-0.1, L * 0.5, 0], 150, 60);
   addCallout(internalCallouts, crank, 'Crankshaft', [0, -0.16, 0.32], -35, 60);
 
+  // live readout (#17): names the stroke happening RIGHT NOW + the crank angle,
+  // updated every frame from setCycle. The sole label on the mechanism/run
+  // steps (the static callouts are off there), so it reads as a clean HUD.
+  const strokeReadout = callout('—', { dir: 18, len: 96, key: 'stroke-readout' });
+  strokeReadout.position.set(0.2, HEAD_Y - 0.12, 0);
+  strokeReadout.visible = false;
+  group.add(strokeReadout);
+  const STROKES = ['INTAKE', 'COMPRESSION', 'POWER', 'EXHAUST'];
+
   const chargeColors = {
     intake: new THREE.Color(0x5ec1ff),
     compressed: new THREE.Color(0x9fe0ff),
@@ -397,6 +406,7 @@ export function buildEngine({ scene }) {
     for (const o of shellMeshes) o.visible = !revealed;
     for (const o of internalMeshes) o.visible = revealed;
     if (!revealed) charge.material.opacity = 0;
+    strokeReadout.visible = revealed;
     refreshLabels();
   }
 
@@ -404,6 +414,9 @@ export function buildEngine({ scene }) {
   function setCycle(cycleDeg) {
     const cycle = ((cycleDeg % 720) + 720) % 720;
     const theta = deg(cycle); // crank spins continuously
+
+    // live readout: which of the four strokes is happening + the crank angle
+    if (revealed) strokeReadout.setText(`${STROKES[Math.floor(cycle / 180)]} · ${Math.round(cycle)}°`);
 
     crank.rotation.z = -theta;
 

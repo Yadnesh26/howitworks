@@ -27,17 +27,53 @@ function buildStudioEnv() {
   panel(8, 8, 0.7, [1, 1, 1], [0, -4, 0]); // floor bounce
   return env;
 }
+
+// Studio-backdrop gradient used as scene.background instead of flat black: a
+// near-black frame with a soft charcoal glow behind the model, so DARK models
+// (black engine castings, blued gun steel, dark plastics) separate from the
+// background instead of blending into it — the flat 0x0b0c10 swallowed them.
+// A plain 2D texture set as scene.background renders as a fixed screen-space
+// backdrop (it does NOT track the camera or add reflections — scene.environment
+// still owns lighting), exactly like a photographer's seamless sweep. Same
+// CanvasTexture trick as the contact shadow below.
+function makeBackdrop() {
+  const S = 1024; // higher res so stretching to a 1080p+ frame magnifies less
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#090a0e'; // near-black base (keeps the cinematic frame)
+  ctx.fillRect(0, 0, S, S);
+  // broad, gentle glow biased right-of-centre and a touch high — where the
+  // model sits (the text panel owns the left third and covers the darker side)
+  const g = ctx.createRadialGradient(560, 448, 48, 592, 500, 816);
+  g.addColorStop(0.0, '#2e313b'); // charcoal lift, faintly cool to match the rig
+  g.addColorStop(0.45, '#1a1c24');
+  g.addColorStop(1.0, '#090a0e'); // fades back to the base at the edges
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+  // NOTE: intentionally NO per-pixel dither here. The WebGL site renders this
+  // smoothly; the concentric banding only appeared in EXPORTED VIDEO, born in
+  // the JPEG-frame + 8-bit-H.264 compression — so it's fixed in the export
+  // pipeline (PNG frames + a deband pass), not by graining up the live scene.
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.generateMipmaps = false; // a full-frame backdrop never needs mips
+  tex.minFilter = THREE.LinearFilter;
+  return tex;
+}
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
+import { declutterCallouts } from './label-layout.js';
 
 // Reusable 3D stage: renderer + camera + lights + soft-shadow floor.
 // Every explainer gets one; the player owns its lifecycle.
-export function createStage(container) {
+export function createStage(container, options = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(container.clientWidth, container.clientHeight);
@@ -60,8 +96,8 @@ export function createStage(container) {
   container.appendChild(labelRenderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0b0c10);
-  scene.fog = new THREE.Fog(0x0b0c10, 14, 34);
+  scene.background = makeBackdrop();
+  scene.fog = new THREE.Fog(0x0a0b0f, 16, 36); // matches the backdrop's dark edge
 
   // Synthetic rig applies instantly so the first frame is never unlit; the
   // real photographed studio HDRI (Poly Haven, CC0) replaces it as soon as it
@@ -165,6 +201,7 @@ export function createStage(container) {
   // the page.
   let composer = null;
   let gtao = null;
+  let bokehPass = null;
   try {
     composer = new EffectComposer(renderer);
     composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -172,6 +209,18 @@ export function createStage(container) {
     gtao = new GTAOPass(scene, camera, container.clientWidth, container.clientHeight);
     gtao.blendIntensity = 0.85;
     composer.addPass(gtao);
+    
+    if (options.dof) {
+      bokehPass = new BokehPass(scene, camera, {
+        focus: 1.0,
+        aperture: 0.0002,
+        maxblur: 0.006,
+        width: container.clientWidth,
+        height: container.clientHeight
+      });
+      composer.addPass(bokehPass);
+    }
+    
     const bloom = new UnrealBloomPass(
       new THREE.Vector2(container.clientWidth, container.clientHeight),
       0.16, // strength: a whisper, not a haze
@@ -213,6 +262,9 @@ export function createStage(container) {
     if (composer) composer.render();
     else renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
+    // after the CSS2D pass has positioned every pill, nudge overlapping ones
+    // apart so labels never collide (see label-layout.js)
+    declutterCallouts(scene);
   });
 
   return {
@@ -222,6 +274,7 @@ export function createStage(container) {
     controls,
     composer,
     labelRenderer,
+    bokehPass,
     onTick(fn) {
       tickHandlers.add(fn);
       return () => tickHandlers.delete(fn);
