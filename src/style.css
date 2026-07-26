@@ -5,11 +5,56 @@
 }
 
 :root {
-  --bg: #0b0c10;
-  --panel: rgba(19, 21, 27, 0.78);
+  /* --- type families ---------------------------------------------------- */
+  --font-display: 'Space Grotesk Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Space Grotesk Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Code', monospace;
+
+  /* --- colour ----------------------------------------------------------- */
+  --bg: #08090d;
+  --bg-2: #0d0f16;
+  --panel: rgba(18, 20, 27, 0.72);
   --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
   --text: #e8eaf0;
+  --text-bright: #ffffff;
   --muted: #8b90a0;
+  --accent: #6ea8ff; /* per-card / per-explainer override sets the real value */
+
+  /* --- type scale ------------------------------------------------------- */
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: clamp(15px, 1.4vw, 17px);
+  --fs-lg: clamp(20px, 2vw, 26px);
+  --fs-2xl: clamp(34px, 5.5vw, 64px);
+  --fs-hero: clamp(42px, 8vw, 88px);
+
+  /* --- spacing (8pt) ---------------------------------------------------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* --- radius ----------------------------------------------------------- */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-pill: 999px;
+
+  /* --- elevation -------------------------------------------------------- */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 34px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 24px 70px rgba(0, 0, 0, 0.5);
+
+  /* --- motion ----------------------------------------------------------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 0.22s;
+  --dur-mid: 0.4s;
+  --dur-slow: 0.9s;
 }
 
 html {
@@ -19,24 +64,90 @@ html {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+}
+
+/* --- atmosphere: a fixed film-grain veil over everything. pointer-events
+   none so drags/clicks pass through to the canvas (rules 7 & 8). ---------- */
+body::after {
+  content: '';
+  position: fixed;
+  inset: -50%;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grainShift 0.6s steps(2) infinite;
+}
+
+@keyframes grainShift {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-3%, 2%);
+  }
+  100% {
+    transform: translate(2%, -3%);
+  }
 }
 
 code {
   background: rgba(255, 255, 255, 0.08);
   padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 0.9em;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::after {
+    animation: none;
+  }
 }
 
 /* ================= home ================= */
 
 .home {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   padding: 0 24px;
+}
+
+/* aurora: slow-drifting mesh of accent-tinted glows behind the whole library.
+   No canvas here, so it renders against --bg. pointer-events untouched (it's a
+   background layer at z -1, below the interactive grid). */
+.home::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60vw 50vh at 18% 12%, rgba(110, 168, 255, 0.16), transparent 60%),
+    radial-gradient(55vw 45vh at 85% 20%, rgba(178, 141, 255, 0.13), transparent 60%),
+    radial-gradient(70vw 55vh at 60% 100%, rgba(84, 200, 232, 0.12), transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
+  animation: auroraDrift 26s var(--ease-inout) infinite alternate;
+}
+
+@keyframes auroraDrift {
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(2%, 2%, 0) scale(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home::before {
+    animation: none;
+  }
 }
 
 .home-hero {
@@ -45,9 +156,10 @@ code {
 }
 
 #home-title {
-  font-size: clamp(42px, 8vw, 88px);
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-family: var(--font-display);
+  font-size: var(--fs-hero);
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 #home-title .ch {
@@ -55,7 +167,6 @@ code {
   opacity: 0;
 }
 
-#home-title .ch:nth-child(4),
 #home-title .ch:nth-child(5) {
   color: #6ea8ff;
 }
@@ -63,8 +174,8 @@ code {
 .home-tag {
   margin-top: 14px;
   color: var(--muted);
-  font-size: clamp(14px, 2vw, 17px);
-  letter-spacing: 0.04em;
+  font-size: var(--fs-md);
+  letter-spacing: 0.02em;
   opacity: 0;
 }
 
@@ -72,58 +183,113 @@ code {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 380px));
   justify-content: center;
-  gap: 22px;
+  gap: var(--sp-5);
   padding-bottom: 10vh;
 }
 
 .ex-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--sp-3);
   padding: 28px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--panel);
+  box-shadow: var(--shadow-card);
   text-decoration: none;
   color: var(--text);
   opacity: 0;
-  transition: border-color 0.25s;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: border-color var(--dur-mid) var(--ease-out),
+    box-shadow var(--dur-mid) var(--ease-out);
+}
+
+/* accent mesh-glow bleeding from the top-left — the card's colour identity.
+   Brightens on hover; the JS tilt handler drives the 3D rotate on top. */
+.ex-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(80% 60% at 0% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%);
+  opacity: 0.6;
+  transition: opacity var(--dur-mid) var(--ease-out);
+}
+
+/* thin accent rule along the top edge */
+.ex-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.5;
+  transition: opacity var(--dur-mid) var(--ease-out);
+}
+
+.ex-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ex-card.tilt {
+  transition: border-color var(--dur-mid) var(--ease-out),
+    box-shadow var(--dur-mid) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 
 .ex-card:hover {
   border-color: var(--accent);
+  box-shadow: var(--shadow-pop), 0 0 40px -8px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.ex-card:hover::before,
+.ex-card:hover::after {
+  opacity: 1;
 }
 
 .ex-kicker {
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
 .ex-card h2 {
-  font-size: 26px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .ex-card p {
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   line-height: 1.65;
   color: var(--muted);
   flex: 1;
 }
 
 .ex-steps {
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
   color: var(--muted);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 .home-foot {
   text-align: center;
   padding: 24px 0 32px;
   color: var(--muted);
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
   opacity: 0;
 }
 
@@ -142,20 +308,27 @@ code {
 .home-search {
   margin-top: 34px;
   width: min(440px, 90%);
-  padding: 12px 20px;
-  border-radius: 999px;
+  padding: 13px 22px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--border);
   background: var(--panel);
+  backdrop-filter: blur(10px);
   color: var(--text);
-  font: inherit;
-  font-size: 14px;
-  letter-spacing: 0.03em;
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+  letter-spacing: 0.02em;
   outline: none;
-  transition: border-color 0.25s;
+  transition: border-color var(--dur-mid) var(--ease-out),
+    box-shadow var(--dur-mid) var(--ease-out);
+}
+
+.home-search::placeholder {
+  color: var(--muted);
 }
 
 .home-search:focus {
   border-color: #6ea8ff;
+  box-shadow: 0 0 0 4px rgba(110, 168, 255, 0.12);
 }
 
 .home-section {
@@ -169,7 +342,9 @@ code {
   max-width: 1200px;
   margin: 0 auto 18px;
   padding: 0 4px;
-  font-size: 15px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
@@ -208,6 +383,24 @@ code {
   pointer-events: none;
 }
 
+/* accent frame: a soft edge vignette tinted in the explainer's accent, so the
+   product shot feels lit by its own colour. Centre stays fully clear; corners
+   are barely tinted. pointer-events none keeps drag-to-orbit intact (rule 7). */
+.player::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 90% at 50% 45%,
+    transparent 55%,
+    color-mix(in srgb, var(--accent) 14%, transparent) 100%
+  );
+  mix-blend-mode: screen;
+  opacity: 0.5;
+}
+
 .canvas-holder {
   position: fixed;
   inset: 0;
@@ -229,13 +422,13 @@ code {
 .callout::before {
   content: '';
   position: absolute;
-  left: -3px;
-  top: -3px;
-  width: 6px;
-  height: 6px;
+  left: -4px;
+  top: -4px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--accent, #8fd3ff);
-  box-shadow: 0 0 8px var(--accent, #8fd3ff);
+  box-shadow: 0 0 12px var(--accent, #8fd3ff);
 }
 
 .callout-line {
@@ -250,14 +443,50 @@ code {
 .callout-text {
   position: absolute;
   white-space: nowrap;
-  font-size: 12px;
-  letter-spacing: 0.07em;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 3px 9px;
+  border-radius: 11px;
+  padding: 5px 14px; /* +50% from 3px 9px */
   backdrop-filter: blur(8px);
+}
+
+/* focus/highlight (#3): the active step's part pulses so it's unmistakable.
+   NB: never animate the pill's `transform` — labels.js sets it inline to
+   position the pill; a keyframe transform would override that and misplace it.
+   Pulse box-shadow/colour on the pill and scale the DOT (::before) instead. */
+.callout--active .callout-text {
+  border-color: var(--accent, #8fd3ff);
+  color: #fff;
+  animation: calloutActive 1.3s ease-in-out infinite;
+}
+@keyframes calloutActive {
+  0%,
+  100% {
+    box-shadow: 0 0 6px -1px var(--accent, #8fd3ff);
+  }
+  50% {
+    box-shadow: 0 0 16px 1px var(--accent, #8fd3ff);
+  }
+}
+.callout--active::before {
+  transform-origin: center;
+  animation: calloutDot 1.3s ease-in-out infinite;
+}
+@keyframes calloutDot {
+  0%,
+  100% {
+    box-shadow: 0 0 8px var(--accent, #8fd3ff);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 18px 3px var(--accent, #8fd3ff);
+    transform: scale(1.5);
+  }
 }
 
 .back-link {
@@ -267,19 +496,23 @@ code {
   z-index: 3;
   pointer-events: auto;
   color: var(--muted);
+  font-family: var(--font-mono);
   text-decoration: none;
-  font-size: 14px;
-  letter-spacing: 0.06em;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.04em;
   padding: 8px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--panel);
   backdrop-filter: blur(10px);
   opacity: 0;
+  transition: color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
 .back-link:hover {
   color: var(--text);
+  border-color: var(--accent);
 }
 
 .scroll-hint {
@@ -289,6 +522,7 @@ code {
   transform: translateX(-50%);
   z-index: 3;
   color: var(--muted);
+  font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.3em;
   text-transform: uppercase;
@@ -343,6 +577,7 @@ code {
 }
 
 .hero-kicker {
+  font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.3em;
   text-transform: uppercase;
@@ -351,15 +586,17 @@ code {
 }
 
 .player-hero h1 {
-  font-size: clamp(34px, 5.5vw, 64px);
-  font-weight: 800;
-  line-height: 1.08;
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.015em;
   margin: 14px 0;
   opacity: 0;
 }
 
 .hero-summary {
-  font-size: clamp(14px, 1.6vw, 17px);
+  font-size: var(--fs-md);
   color: var(--muted);
   line-height: 1.7;
   max-width: 520px;
@@ -383,40 +620,50 @@ code {
 .panel {
   width: min(400px, 84vw);
   padding: 26px 30px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--panel);
+  box-shadow: var(--shadow-card);
   backdrop-filter: blur(16px);
   opacity: 0.35;
-  transition: opacity 0.4s, border-color 0.4s;
+  transition: opacity var(--dur-mid) var(--ease-out),
+    border-color var(--dur-mid) var(--ease-out),
+    box-shadow var(--dur-mid) var(--ease-out);
   pointer-events: auto;
 }
 
 .panel.active {
   opacity: 1;
   border-color: var(--accent);
+  box-shadow: var(--shadow-pop),
+    0 0 32px -12px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .panel-num {
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
   letter-spacing: 0.24em;
   color: var(--accent);
 }
 
 .panel h2 {
-  font-size: 26px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 8px 0 10px;
 }
 
 .panel p {
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 1.7;
   color: var(--muted);
 }
 
 .panel-hint {
   margin-top: 12px;
+  font-family: var(--font-mono);
   font-size: 12px !important;
   letter-spacing: 0.08em;
   color: var(--accent) !important;

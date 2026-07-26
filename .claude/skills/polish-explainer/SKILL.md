@@ -78,6 +78,11 @@ Nothing real has a sharp edge; bevels catching light are the single biggest
   validation, add a `materials.anisoSteel(color, rotation)` preset.
 - **Clearcoat** [VALIDATED]: already in `materials.paintedMetal` (clearcoat 1,
   clearcoatRoughness 0.14). Use for painted housings, glossy plastic, lacquer.
+- **Matte polymer** [VALIDATED — semi-auto-pistol (2026-07-18)]:
+  `materials.polymer(color)` (roughness 0.74, clearcoat 0.15). Use for moulded
+  polymer/tool/appliance bodies — `paintedMetal`'s glossy coat reads as cheap
+  wet plastic on these, and a high clearcoat also renders at full strength
+  while a shell is ghosted (fights the x-ray reveal). Low coat ghosts cleanly.
 - **Fingerprint smudges on gloss** [CANDIDATE]: procedural smudge canvas →
   `clearcoatRoughnessMap` (smudges live in the *coat*, not the base — this is
   exactly how real fingerprints on a watch crystal behave). Faint: texels
@@ -125,18 +130,24 @@ the existing `brushedMap`/`grimeMap` style):
 
 ### Rung 4 — Per-step cinematography
 
-- **Depth of field** [CANDIDATE]: `BokehPass` from
+- **Depth of field** [VALIDATED — microwave-oven, semi-auto-pistol
+  (2026-07-18)]: `BokehPass` from
   `three/addons/postprocessing/BokehPass.js`, inserted AFTER GTAOPass and
-  BEFORE UnrealBloomPass in `createStage`'s composer chain. Make it an
-  opt-in: `createStage(container, { dof: true })` wired through the player
-  from a new optional `stageOptions` on defineExplainer — old explainers
-  must be untouched. Per step, on enter:
-  `bokeh.uniforms.focus.value = camera.position.distanceTo(step.target)`;
-  start `aperture: 0.0002, maxblur: 0.006`; macro/close steps get the
-  strongest effect, overview steps near-zero aperture. HONEST WARNING:
-  BokehPass is a simple shader and can look smeary rather than filmic — if a
-  screenshot round doesn't clearly win, drop DOF entirely rather than ship a
-  mediocre blur.
+  BEFORE UnrealBloomPass in `createStage`'s composer chain. Already wired:
+  opt in with `stageOptions: { dof: true }` on defineExplainer, and set
+  per-step `dofAperture` (player focuses at the step's camera→target distance;
+  default 0.00002 keeps unset steps sharp). Working aperture ladder: macro
+  close-ups 0.00016; medium 0.0001; overview/wide/deep-scene steps
+  0.00001–0.00003 (near-sharp). GOTCHA (pistol): BokehPass runs BEFORE bloom,
+  so it concentrates bright specular/glints into clipping bokeh discs — an
+  overview step full of chrome springs went from 65→235 clipped px at only
+  0.00006 aperture, and lowering aperture alone did NOT clear it. The fix that
+  worked: keep overview steps near-zero aperture AND matte the bright metal
+  (mirror-chrome internals → roughness ~0.34 satin steel reads truer anyway).
+  Re-run the clipped-pixel scan at EVERY step after enabling DOF. HONEST
+  WARNING: BokehPass is a simple shader and can look smeary rather than
+  filmic — if a screenshot round doesn't clearly win, drop DOF entirely
+  rather than ship a mediocre blur.
 - **Grain + vignette** [CANDIDATE]: tiny ShaderPass before OutputPass —
   grain amplitude ~0.02, vignette darkening ~0.25 at corners. Cheap, makes
   frames feel filmed; same opt-in route as DOF.

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { animate } from 'animejs';
 import {
   brushedMap,
@@ -7,6 +8,7 @@ import {
   castNormalMap,
   grimeMap,
   heatBlueMap,
+  woodGrainMap,
 } from './textures.js';
 
 // Shared material presets so explainers look like one family.
@@ -46,6 +48,32 @@ export const materials = {
     }),
   rubber: (color = 0x1c1e22) =>
     new THREE.MeshPhysicalMaterial({ color, metalness: 0, roughness: 0.95 }),
+  // matte moulded polymer — tool/appliance/firearm housings. Distinct from
+  // `plastic` (glossier MeshStandard) and `paintedMetal` (glossy lacquer over
+  // metal): near-zero specular gloss, just the faint sheen real polymer has,
+  // so it reads as a dry moulded body rather than wet-looking plastic. A low
+  // clearcoat (0.15) also lets it ghost correctly on reveal — a high coat
+  // renders at full strength regardless of opacity and reads solid.
+  polymer: (color = 0x23262c) =>
+    new THREE.MeshPhysicalMaterial({
+      color,
+      metalness: 0,
+      roughness: 0.74,
+      clearcoat: 0.15,
+      clearcoatRoughness: 0.62,
+    }),
+  // varnished laminate wood — rifle/tool furniture, handles, stocks. The grain
+  // colour rides a woodGrainMap; `tint` multiplies it (default white keeps the
+  // map's own browns). A light clearcoat gives the satin varnish sheen.
+  wood: (tint = 0xffffff) =>
+    new THREE.MeshPhysicalMaterial({
+      color: tint,
+      map: woodGrainMap(),
+      metalness: 0,
+      roughness: 0.55,
+      clearcoat: 0.25,
+      clearcoatRoughness: 0.38,
+    }),
   // grimy cast aluminum — oil/dirt pools toward the UV's "down" edge instead
   // of scattering evenly, for housings that sit low and collect it (sumps,
   // crankcases). Pair with geometry whose UV "down" is the part's actual
@@ -194,6 +222,24 @@ export function chargeQueue(curve, count = 6, color = 0x6ea8ff, opts = {}) {
   }
   setFront(0);
   return { group, dots, setFront };
+}
+
+// Standard charcoal display plinth every product-shot explainer stands on.
+// The clearcoat comes pre-softened: the paintedMetal preset's default coat
+// streak was the ONE clipped-white patch in a full readPixels bisect of the
+// gearbox scene — these numbers are the verified fix, don't re-brighten them.
+// Returns a mesh with its BOTTOM at y=0 (model stands on top at y=h).
+export function studioPlinth({ w = 3.6, h = 0.26, d = 1.9, bevel = 0.06, color = 0x1b1d21 } = {}) {
+  const mat = materials.paintedMetal(color);
+  mat.clearcoat = 0.45;
+  mat.clearcoatRoughness = 0.32;
+  mat.roughness = 0.55;
+  const r = Math.min(bevel, w / 2, h / 2, d / 2);
+  const mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, r), mat);
+  mesh.position.y = h / 2;
+  mesh.receiveShadow = true;
+  mesh.castShadow = true;
+  return mesh;
 }
 
 // Floating text label rendered onto a canvas sprite.

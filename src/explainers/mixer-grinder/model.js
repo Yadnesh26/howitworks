@@ -615,7 +615,7 @@ export function buildMixer({ scene }) {
   addCallout('motor', group, 'Field coil (series)', [-STATOR_R, (ARM_Y0 + ARM_Y1) / 2, 0.1], -140, 66);
   addCallout('motor', group, 'Cooling fan', [0.16, FAN_Y - 0.02, 0.16], -50, 56);
 
-  addCallout('comm', group, 'Commutator', [COMM_R + 0.05, (COMM_Y0 + COMM_Y1) / 2 + 0.1, 0.1], 45, 56);
+  addCallout('comm', group, 'Commutator', [COMM_R + 0.03, (COMM_Y0 + COMM_Y1) / 2, 0.06], 40, 50);
   addCallout('comm', group, 'Carbon brush', [0.0, (COMM_Y0 + COMM_Y1) / 2, BRUSH_R + 0.16], -70, 58);
 
   addCallout('vortex', group, '4-point blade', [0.0, BLADE_Y + 0.06, 0.2], 30, 52);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { materials, rod, box, disc } from '../../framework/parts.js';
 import { beveledBox, lathe, tubeAlong, coil } from '../../framework/geometry.js';
 import { callout } from '../../framework/labels.js';
+import { stippleNormalMap } from '../../framework/textures.js';
 
 // A striker-fired, short-recoil semi-automatic pistol (Glock/Browning-style
 // tilting-barrel lockup), presented on a display pedestal.
@@ -93,15 +94,29 @@ export function buildPistol({ scene }) {
   // mechanism, so we lift the lid off instead). The POLYMER frame/grip GHOSTS
   // to a faint translucent body (polymer has little specular, so low opacity
   // reads correctly) to keep spatial context around the mechanism.
-  const steelSkin = materials.brushedSteel(0x8b929c);
-  steelSkin.roughness = 0.45;
+  // Slide: a real Glock slide is a matte black nitride finish, not bright
+  // stainless — a dark gunmetal at higher roughness reads far more like the
+  // reference and sits richer against the gradient backdrop, while staying
+  // light enough to keep its edges dimensional (pure black would flatten).
+  const steelSkin = materials.brushedSteel(0x585d65);
+  steelSkin.roughness = 0.52;
   const darkSkin = materials.darkMetal(0x141619);
-  const polymerSkin = materials.paintedMetal(0x23262c);
-  polymerSkin.clearcoatRoughness = 0.4;
+  // Frame: matte moulded polymer (see the shared preset) — the old glossy
+  // clearcoat read as cheap wet plastic and fought the x-ray ghost.
+  const polymerSkin = materials.polymer(0x23262c);
   const gripPanel = materials.rubber(0x0c0d10);
+  const stippleTex = stippleNormalMap();
+  stippleTex.repeat.set(5, 9);
+  gripPanel.normalMap = stippleTex;
+  gripPanel.normalScale = new THREE.Vector2(0.85, 0.85);
+  gripPanel.roughness = 0.92;
   const ghostMats = [polymerSkin, gripPanel, darkSkin]; // frame/grip fade to a faint body
 
   const chrome = materials.chrome(0xd6dbe1);
+  // Used for the striker, springs and guide rod — internal STEEL parts, which
+  // are satin/polished, not a mirror. A higher roughness both reads truer and
+  // kills the blown-white specular the close-up + DOF bokeh otherwise clips.
+  chrome.roughness = 0.34;
   const brass = materials.brushedSteel(0xc9a15a);
   const copper = materials.aluminum(0xb5793f);
   const steelDark = materials.steel(0x5c6169);
@@ -304,8 +319,30 @@ export function buildPistol({ scene }) {
   const BEZEL_DEPTH = 0.18;
   const BEZEL_X0 = SLIDE_X1 - BEZEL_DEPTH; // 0.89
   const bodyLen = BEZEL_X0 - SLIDE_X0;
-  const slideBody = beveledBox(bodyLen, SLIDE_TOP - SLIDE_BOT, SLIDE_HW * 2, steelSkin, 0.03);
-  slideBody.position.set((SLIDE_X0 + BEZEL_X0) / 2, SLIDE_CY, 0);
+  // Glock slide cross-section: flat bottom, vertical sides, and the signature
+  // 45deg chamfers on the top corners meeting a flat top — extruded along the
+  // bore. (A plain box read as a brick; the chamfered top is THE slide tell.)
+  const SLIDE_CHAMFER = 0.038;
+  const slideSect = new THREE.Shape();
+  slideSect.moveTo(-SLIDE_HW, SLIDE_BOT);
+  slideSect.lineTo(SLIDE_HW, SLIDE_BOT);
+  slideSect.lineTo(SLIDE_HW, SLIDE_TOP - SLIDE_CHAMFER);
+  slideSect.lineTo(SLIDE_HW - SLIDE_CHAMFER, SLIDE_TOP);
+  slideSect.lineTo(-(SLIDE_HW - SLIDE_CHAMFER), SLIDE_TOP);
+  slideSect.lineTo(-SLIDE_HW, SLIDE_TOP - SLIDE_CHAMFER);
+  slideSect.closePath();
+  const slideBodyGeo = new THREE.ExtrudeGeometry(slideSect, {
+    depth: bodyLen,
+    bevelEnabled: true,
+    bevelThickness: 0.008,
+    bevelSize: 0.006,
+    bevelSegments: 1,
+    curveSegments: 1,
+  });
+  slideBodyGeo.rotateY(Math.PI / 2); // extrude axis +Z → +X (bore)
+  const slideBody = new THREE.Mesh(slideBodyGeo, steelSkin);
+  slideBody.castShadow = true;
+  slideBody.position.set(SLIDE_X0 + 0.006, 0, 0);
   addSlideShell(slideBody);
 
   // MUZZLE bezel: the slide's front face as an EXTRUDED plate WITH A CIRCULAR
@@ -348,19 +385,52 @@ export function buildPistol({ scene }) {
   port.position.set(CHAMBER_X + 0.06, SLIDE_TOP - 0.03, 0.03);
   addSlideShell(port);
 
-  // sights
-  const frontSight = beveledBox(0.026, 0.04, 0.028, darkSkin, 0.005);
-  frontSight.position.set(SLIDE_X1 - 0.13, SLIDE_TOP + 0.02, 0);
+  // sights — a post front sight (base + blade + a white-dot insert) and a
+  // two-eared rear sight with a real U-notch gap between the ears, matching
+  // the reference photos (not a single anonymous block).
+  const sightDot = materials.glow(0xf2f4f8, 0.5);
+  const FRONT_SIGHT_X = SLIDE_X1 - 0.13;
+  const frontSightBase = beveledBox(0.03, 0.014, 0.032, darkSkin, 0.004);
+  frontSightBase.position.set(FRONT_SIGHT_X, SLIDE_TOP + 0.007, 0);
+  addSlideShell(frontSightBase);
+  const frontSight = beveledBox(0.016, 0.038, 0.018, darkSkin, 0.004);
+  frontSight.position.set(FRONT_SIGHT_X, SLIDE_TOP + 0.007 + 0.007 + 0.019, 0);
   addSlideShell(frontSight);
-  const rearSight = beveledBox(0.055, 0.045, 0.1, darkSkin, 0.008);
-  rearSight.position.set(SLIDE_X0 + 0.13, SLIDE_TOP + 0.02, 0);
+  const frontDot = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 10, 8), sightDot);
+  frontDot.position.set(FRONT_SIGHT_X - 0.01, SLIDE_TOP + 0.007 + 0.007 + 0.026, 0);
+  addSlideShell(frontDot);
+
+  const REAR_SIGHT_X = SLIDE_X0 + 0.13;
+  const rearSightBase = beveledBox(0.05, 0.028, SLIDE_HW * 1.86, darkSkin, 0.006);
+  rearSightBase.position.set(REAR_SIGHT_X, SLIDE_TOP + 0.008, 0);
+  addSlideShell(rearSightBase);
+  const rearSight = beveledBox(0.024, 0.05, 0.026, darkSkin, 0.005); // left ear (also the "Sights" callout anchor)
+  rearSight.position.set(REAR_SIGHT_X, SLIDE_TOP + 0.026, SLIDE_HW * 0.62);
   addSlideShell(rearSight);
+  const rearEarR = rearSight.clone();
+  rearEarR.position.z = -SLIDE_HW * 0.62;
+  addSlideShell(rearEarR);
+  for (const z of [SLIDE_HW * 0.62 - 0.014, -SLIDE_HW * 0.62 + 0.014]) {
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.005, 10, 8), sightDot);
+    dot.position.set(REAR_SIGHT_X - 0.008, SLIDE_TOP + 0.028, z);
+    addSlideShell(dot);
+  }
 
   // rear cocking serrations
   for (let i = 0; i < 6; i++) {
     const gx = SLIDE_X0 + 0.09 + i * 0.032;
     for (const z of [SLIDE_HW + 0.002, -(SLIDE_HW + 0.002)]) {
       const groove = box(0.012, 0.17, 0.012, darkSkin);
+      groove.position.set(gx, SLIDE_CY, z);
+      addSlideShell(groove);
+    }
+  }
+  // front cocking serrations (Gen4/Gen5-style), ahead of the ejection port —
+  // stop well short of the bezel so they read as a separate grip zone.
+  for (let i = 0; i < 5; i++) {
+    const gx = BEZEL_X0 - 0.07 - i * 0.026;
+    for (const z of [SLIDE_HW + 0.002, -(SLIDE_HW + 0.002)]) {
+      const groove = box(0.01, 0.15, 0.01, darkSkin);
       groove.position.set(gx, SLIDE_CY, z);
       addSlideShell(groove);
     }
@@ -394,46 +464,124 @@ export function buildPistol({ scene }) {
   const STRIKER_BASE_FWD = CHAMBER_X - 0.05 - STRIKER_LEN;
   const STRIKER_BASE_COCKED = STRIKER_BASE_FWD - 0.13;
 
-  // --- frame (tinted polymer) : one rail under the slide, stopping short of
-  // the muzzle (the slide overhangs it, as on a real pistol) ----------------
+  // --- frame (tinted polymer) : dust cover, trigger-guard shelf and grip
+  // built as ONE continuous extruded silhouette (same technique as the slide
+  // body above) — a real Glock frame is a single moulded piece, and building
+  // it from separate disconnected boxes was the single biggest "broken" tell
+  // (the grip read as a floating slab with a gap at the trigger). The whole
+  // outline — including the grip's backward rake — is traced directly in
+  // world (X=bore, Y=up) coordinates; the trigger guard hangs off it as a
+  // separate tube loop (real guns' guard is a thin bail, not part of the
+  // load-bearing silhouette).
   const FRAME_TOP = BORE_Y + SLIDE_BOT; // 0.79 — slide sits on this
-  const frameRail = beveledBox(1.02, 0.08, 0.17, polymerSkin, 0.02);
-  frameRail.position.set(0.34, FRAME_TOP - 0.04, 0);
-  group.add(frameRail);
-  const slideStop = beveledBox(0.13, 0.028, 0.02, darkSkin, 0.006);
-  slideStop.position.set(0.1, FRAME_TOP - 0.06, -0.085);
-  group.add(slideStop);
+  const FRAME_HW = 0.092; // frame slightly narrower than the slide, which overhangs it
+  const DUST_X1 = 0.85; // dust-cover tip, just short of the muzzle bezel
+  const FRAME_BELLY_Y = FRAME_TOP - 0.19; // 0.60 — flat underside of the dust cover
+  const BELLY_BACK_X = 0.1; // where the belly meets the top of the front strap
 
-  // --- trigger guard : a rounded loop traced with a tube ------------------
+  // rake direction: unit vector "down the grip" and its perpendicular
+  // ("outward/forward", front-strap side) — every raked point below is this
+  // constant plus a length along one or both of these, so the front strap,
+  // backstrap and beavertail all stay parallel/consistent by construction.
+  const RAKE_DOWN = [Math.sin(GRIP_RAKE), -Math.cos(GRIP_RAKE)];
+  const RAKE_OUT = [Math.cos(GRIP_RAKE), Math.sin(GRIP_RAKE)];
+  const along = (base, dir, len) => [base[0] + dir[0] * len, base[1] + dir[1] * len];
+
+  const FS0 = [BELLY_BACK_X, FRAME_BELLY_Y]; // top of the front strap
+  const FRONT_STRAP_LEN = 0.4;
+  const FS1 = along(FS0, RAKE_DOWN, FRONT_STRAP_LEN); // grip bottom-front corner
+  const GRIP_DEPTH = 0.3; // front-strap-to-backstrap distance
+  const GBB = along(FS1, RAKE_OUT, -GRIP_DEPTH); // grip bottom-back corner
+  const BACKSTRAP_LEN = 0.44;
+  const BST = along(GBB, RAKE_DOWN, -BACKSTRAP_LEN); // top of the backstrap
+  const BTF = [BST[0] + 0.05, BST[1] + 0.1]; // beavertail flare, tucks under the slide's rear
+  const REAR_TOP = [-0.17, FRAME_TOP];
+  const DCBF = [DUST_X1, FRAME_BELLY_Y]; // dust-cover bottom-front
+  const DCTF = [DUST_X1, FRAME_TOP]; // dust-cover top-front
+
+  // finger grooves: 2-3 shallow scallops dented into the front strap, not a
+  // flat plank — a real Glock frame carves these directly into the silhouette.
+  const GROOVE_DEPTH = 0.014;
+  function frontStrapPoint(t) {
+    const hump = Math.pow(Math.sin(t * 3 * Math.PI), 2);
+    return [
+      FS1[0] + (FS0[0] - FS1[0]) * t - RAKE_OUT[0] * hump * GROOVE_DEPTH,
+      FS1[1] + (FS0[1] - FS1[1]) * t - RAKE_OUT[1] * hump * GROOVE_DEPTH,
+    ];
+  }
+
+  const frameShape = new THREE.Shape();
+  frameShape.moveTo(GBB[0], GBB[1]);
+  frameShape.lineTo(FS1[0], FS1[1]);
+  for (let i = 1; i <= 10; i++) frameShape.lineTo(...frontStrapPoint(i / 10));
+  frameShape.lineTo(DCBF[0], DCBF[1]);
+  frameShape.lineTo(DCTF[0], DCTF[1]);
+  frameShape.lineTo(REAR_TOP[0], REAR_TOP[1]);
+  frameShape.lineTo(BTF[0], BTF[1]);
+  frameShape.lineTo(BST[0], BST[1]);
+  frameShape.closePath();
+  const frameBodyGeo = new THREE.ExtrudeGeometry(frameShape, {
+    depth: FRAME_HW * 2,
+    bevelEnabled: true,
+    bevelThickness: 0.01,
+    bevelSize: 0.009,
+    bevelSegments: 2,
+    curveSegments: 1,
+  });
+  frameBodyGeo.translate(0, 0, -FRAME_HW);
+  const frameBody = new THREE.Mesh(frameBodyGeo, polymerSkin);
+  frameBody.castShadow = true;
+  group.add(frameBody);
+
+  // accessory rail: three short cross-ribs on the underside of the dust cover
+  for (let i = 0; i < 3; i++) {
+    const rib = beveledBox(0.03, 0.022, FRAME_HW * 2 + 0.006, darkSkin, 0.004);
+    rib.position.set(DUST_X1 - 0.12 - i * 0.11, FRAME_BELLY_Y - 0.011, 0);
+    group.add(rib);
+  }
+  // slide-stop lever (left side, above the trigger) + takedown lever below it
+  const slideStop = beveledBox(0.18, 0.03, 0.016, darkSkin, 0.006);
+  slideStop.position.set(0.16, FRAME_TOP - 0.055, -(FRAME_HW + 0.008));
+  group.add(slideStop);
+  const takedown = beveledBox(0.05, 0.038, 0.014, darkSkin, 0.006);
+  takedown.position.set(0.235, FRAME_TOP - 0.1, -(FRAME_HW + 0.006));
+  group.add(takedown);
+  // magazine-release button, on the frame just behind the trigger guard
+  const magRelease = beveledBox(0.042, 0.042, 0.018, darkSkin, 0.008);
+  magRelease.position.set(0.06, 0.58, FRAME_HW + 0.003);
+  group.add(magRelease);
+
+  // --- trigger guard : a rounded loop traced with a tube, hanging off the
+  // belly (front) and the front strap (rear) --------------------------------
+  const GUARD_TOP_REAR = along(FS0, RAKE_DOWN, FRONT_STRAP_LEN * 0.15); // attaches ON the front strap
   const guardPts = [
-    [0.17, FRAME_TOP - 0.07, 0],
-    [0.16, FRAME_TOP - 0.18, 0],
-    [0.08, FRAME_TOP - 0.24, 0],
-    [-0.05, FRAME_TOP - 0.245, 0],
-    [-0.16, FRAME_TOP - 0.21, 0],
-    [-0.2, FRAME_TOP - 0.11, 0],
+    [0.34, FRAME_BELLY_Y, 0], // top-front, attaches ON the belly
+    [0.32, 0.44, 0],
+    [0.2, 0.395, 0],
+    [0.02, 0.395, 0],
+    [-0.07, 0.44, 0],
+    [GUARD_TOP_REAR[0], GUARD_TOP_REAR[1], 0],
   ];
-  const guard = tubeAlong(guardPts, 0.02, polymerSkin, { tubularSegments: 48 });
+  const guard = tubeAlong(guardPts, 0.028, polymerSkin, { tubularSegments: 56 });
   group.add(guard);
 
-  // --- trigger blade (exterior) : sits in the OPEN centre of the guard,
-  // clearly FORWARD of the grip front (was tucked behind the grip and hidden).
-  const TRIG_PIVOT = new THREE.Vector3(0.07, FRAME_TOP - 0.03, 0);
+  // --- trigger blade (exterior) : sits in the OPEN centre of the guard -----
+  const TRIG_PIVOT = new THREE.Vector3(0.19, 0.5, 0);
   const triggerPivot = new THREE.Group();
   triggerPivot.position.copy(TRIG_PIVOT);
   group.add(triggerPivot);
-  const triggerBlade = beveledBox(0.034, 0.17, 0.058, triggerMat, 0.012);
-  triggerBlade.position.set(0.004, -0.095, 0);
+  const triggerBlade = beveledBox(0.034, 0.14, 0.058, triggerMat, 0.012);
+  triggerBlade.position.set(0.004, -0.08, 0);
   triggerBlade.rotation.z = -0.13; // a real trigger bows forward
   triggerPivot.add(triggerBlade);
   // trigger-safety tab down the middle (the Glock tell)
-  const trigTab = beveledBox(0.012, 0.11, 0.018, chrome, 0.004);
-  trigTab.position.set(0.011, -0.085, 0.031);
+  const trigTab = beveledBox(0.012, 0.09, 0.018, chrome, 0.004);
+  trigTab.position.set(0.011, -0.07, 0.031);
   triggerPivot.add(trigTab);
 
   // trigger bar : runs REARWARD and up from the trigger to the striker/sear
   const barPivot = new THREE.Group();
-  barPivot.position.set(0.06, FRAME_TOP - 0.05, 0);
+  barPivot.position.set(0.19, 0.52, 0);
   group.add(barPivot);
   internalMeshes.push(barPivot);
   const triggerBar = tubeAlong(
@@ -447,31 +595,33 @@ export function buildPistol({ scene }) {
   );
   barPivot.add(triggerBar);
 
-  // --- grip : chunky, raked, integral -------------------------------------
-  const GRIP_TOP = new THREE.Vector3(-0.19, FRAME_TOP - 0.02, 0);
+  // --- grip skin : stippled texture panels + magazine internals, raked to
+  // match the frame body's baked-in silhouette ------------------------------
+  const GRIP_DEPTH_HALF = GRIP_DEPTH / 2;
+  const GRIP_TOP = new THREE.Vector3(
+    FS0[0] - RAKE_OUT[0] * GRIP_DEPTH_HALF,
+    FS0[1] - RAKE_OUT[1] * GRIP_DEPTH_HALF,
+    0,
+  ); // grip centreline, at the mouth of the mag well
   const gripPivot = new THREE.Group();
   gripPivot.position.copy(GRIP_TOP);
   gripPivot.rotation.z = GRIP_RAKE;
   group.add(gripPivot);
-  const GRIP_H = (GRIP_TOP.y - PEDESTAL_TOP) / Math.cos(GRIP_RAKE) + 0.06;
-  const GRIP_DEPTH = 0.34;
-  const grip = beveledBox(GRIP_DEPTH, GRIP_H, 0.2, polymerSkin, 0.03);
-  grip.position.y = -GRIP_H / 2;
-  gripPivot.add(grip);
-  for (const z of [0.101, -0.101]) {
-    const panel = beveledBox(GRIP_DEPTH - 0.06, GRIP_H - 0.14, 0.012, gripPanel, 0.01);
-    panel.position.set(0, -GRIP_H / 2, z);
+  const GRIP_H = (FRONT_STRAP_LEN + BACKSTRAP_LEN) / 2 - 0.02;
+  for (const z of [1, -1]) {
+    const panel = beveledBox(GRIP_DEPTH - 0.05, GRIP_H - 0.1, 0.012, gripPanel, 0.008);
+    panel.position.set(0.01, -GRIP_H / 2, z * (FRAME_HW + 0.006));
     gripPivot.add(panel);
   }
-  const floorplate = beveledBox(GRIP_DEPTH + 0.01, 0.045, 0.205, darkSkin, 0.012);
+  const gripFrontPanel = beveledBox(0.016, GRIP_H - 0.16, FRAME_HW * 2 - 0.03, gripPanel, 0.006);
+  gripFrontPanel.position.set(GRIP_DEPTH_HALF - 0.006, -GRIP_H / 2 + 0.02, 0);
+  gripPivot.add(gripFrontPanel);
+  const gripBackPanel = beveledBox(0.016, GRIP_H - 0.16, FRAME_HW * 2 - 0.03, gripPanel, 0.006);
+  gripBackPanel.position.set(-GRIP_DEPTH_HALF + 0.006, -GRIP_H / 2 - 0.01, 0);
+  gripPivot.add(gripBackPanel);
+  const floorplate = beveledBox(GRIP_DEPTH + 0.01, 0.045, FRAME_HW * 2 + 0.025, darkSkin, 0.012);
   floorplate.position.y = -GRIP_H + 0.025;
   gripPivot.add(floorplate);
-
-  // beavertail bridging frame → grip at the top rear
-  const beaver = beveledBox(0.19, 0.07, 0.19, polymerSkin, 0.025);
-  beaver.position.set(GRIP_TOP.x - 0.01, GRIP_TOP.y + 0.02, 0);
-  beaver.rotation.z = 0.5;
-  group.add(beaver);
 
   // --- magazine (INTERNAL) : horizontal rounds stacked down the grip,
   // bigger and centred so they read clearly through the ghosted grip --------
@@ -556,8 +706,8 @@ export function buildPistol({ scene }) {
   addCallout(exteriorCallouts, slideBody, 'Slide', [0.2, 0.1, 0], 115, 60);
   addCallout(exteriorCallouts, rearSight, 'Sights', [0, 0.05, 0], 75, 44);
   addCallout(exteriorCallouts, triggerBlade, 'Trigger', [-0.02, -0.05, 0.05], -35, 52);
-  addCallout(exteriorCallouts, frameRail, 'Frame (polymer)', [0.1, -0.06, 0.09], -55, 58);
-  addCallout(exteriorCallouts, grip, 'Grip / magazine well', [0.06, 0.05, 0.11], -30, 62);
+  addCallout(exteriorCallouts, frameBody, 'Frame (polymer)', [0.45, 0.72, 0.08], -55, 58);
+  addCallout(exteriorCallouts, gripPivot, 'Grip / magazine well', [0.02, -0.2, 0.13], -80, 60);
   addCallout(exteriorCallouts, boreBezel, 'Muzzle', [0.02, -0.02, 0], 15, 50);
 
   addCallout(internalCallouts, striker, 'Striker + firing pin', [0.06, 0.06, 0], 78, 72);
@@ -566,6 +716,15 @@ export function buildPistol({ scene }) {
   addCallout(internalCallouts, barPivot, 'Trigger bar', [0.08, 0.02, 0], -100, 58);
   addCallout(internalCallouts, recoilSpring, 'Recoil spring', [0.12, -0.06, 0], -120, 56);
   addCallout(internalCallouts, gripPivot, 'Magazine', [0.12, -0.3, 0], 25, 64);
+
+  // live readout (#17): chamber pressure — near-zero at rest, spiking to
+  // ~35,000 PSI for the couple of milliseconds the powder burns behind the
+  // bullet. Shown whenever the mechanism is revealed (independent of the label
+  // sets), so the pressure spike reads on every internal step.
+  const psiReadout = callout('Chamber — 0 PSI', { dir: 60, len: 100, key: 'psi-readout' });
+  psiReadout.position.set(CHAMBER_X + 0.05, BORE_Y + 0.15, 0);
+  psiReadout.visible = false;
+  group.add(psiReadout);
 
   // --- pose ------------------------------------------------------------------
   const mod100 = (c) => ((c % 100) + 100) % 100;
@@ -593,6 +752,13 @@ export function buildPistol({ scene }) {
     primerGlow.material.opacity = ignite;
     primerGlow.scale.setScalar(0.5 + ignite * 1.2);
     primerLight.intensity = ignite * 2;
+
+    // live chamber-pressure readout: a bell spike while the powder burns and
+    // the bullet is still in the bore (cyc 8–16.5), rounded to a gauge-like value
+    if (psiReadout.visible) {
+      const fireP = cyc >= 8 && cyc < 16.5 ? Math.sin((Math.PI * (cyc - 8)) / 8.5) : 0;
+      psiReadout.setText(`Chamber — ${(Math.round((fireP * 35000) / 500) * 500).toLocaleString()} PSI`);
+    }
 
     const slideBack =
       cyc < 17 ? 0 : cyc < 45 ? win(cyc, 17, 45) * REC_TRAVEL
@@ -677,7 +843,16 @@ export function buildPistol({ scene }) {
       m.depthWrite = r < 0.35;
     }
     for (const o of internalMeshes) o.visible = show;
-    if (!show) ejMat.opacity = 0;
+    if (!show) {
+      ejMat.opacity = 0;
+      psiReadout.visible = false; // no readout on the solid pistol
+    }
+  }
+
+  // the PSI readout is only meaningful on the firing steps (the chamber-pressure
+  // spike) — steps opt in via showPsi so it doesn't clutter the others
+  function showPsi(on) {
+    psiReadout.visible = !!on && revealed;
   }
 
   function setRace(t) {
@@ -700,6 +875,7 @@ export function buildPistol({ scene }) {
     setCycle,
     setReveal,
     setRace,
+    showPsi,
     setLabels(mode) {
       const ext = mode === 'exterior' || mode === true;
       const int = mode === 'internal';

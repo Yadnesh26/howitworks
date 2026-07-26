@@ -3,6 +3,7 @@ import { animate, createTimeline, stagger } from 'animejs';
 import { createStage } from './stage.js';
 import { scrubTimeline, loopTimeline } from './scroll.js';
 import * as parts from './parts.js';
+import { setFocusCallouts } from './highlight.js';
 
 // Mounts an explainer into `container` and returns a destroy() handle.
 //
@@ -125,7 +126,19 @@ export function mountExplainer(def, container) {
     if (rt.mode === 'loop') rt.tl?.play();
 
     if (step.camera) flyTo(step.camera);
+    // per-step depth of field (only when the explainer opted into
+    // stageOptions.dof): focus at the step's own camera-to-target distance,
+    // aperture from step.dofAperture (near-zero default keeps wides sharp)
+    if (stage.bokehPass && step.camera) {
+      const [px, py, pz] = step.camera.position;
+      const [tx, ty, tz] = step.camera.target;
+      stage.bokehPass.uniforms.focus.value = Math.hypot(px - tx, py - ty, pz - tz);
+      stage.bokehPass.uniforms.aperture.value = step.dofAperture ?? 0.00002;
+    }
     step.onEnter?.({ handles, stage });
+    // pulse the step's focus part(s) so the viewer never hunts for what's being
+    // explained — data-driven, cleared automatically on steps with no `focus`
+    setFocusCallouts(stage.scene, step.focus);
 
     animate(rt.section.querySelectorAll('.panel > *'), {
       opacity: [0, 1],
@@ -146,6 +159,28 @@ export function mountExplainer(def, container) {
   );
   stepRuntimes.forEach((rt) => observer.observe(rt.section));
   cleanups.push(() => observer.disconnect());
+
+  // --- hero levitation: a gentle bob on the FIRST slide, before any scroll, so
+  // the stationary hero feels alive. Off the instant the user scrolls or moves
+  // to another step, easing back to rest so nothing jumps. Never runs in video
+  // export — the export's virtual clock exposes window.__vt, which we gate on,
+  // so exported frames are byte-for-byte unaffected.
+  if (handles.group) {
+    const heroGroup = handles.group;
+    const baseY = heroGroup.position.y;
+    const AMP = 0.02; // world units — subtle float
+    const SPEED = 2.0; // rad/s → ~3.1s cycle (half the original speed)
+    let phase = 0;
+    let bobY = 0;
+    const stopBob = stage.onTick((dt) => {
+      const active = activeIndex === 0 && window.scrollY < 4 && !window.__vt;
+      phase += dt * SPEED;
+      const target = active ? Math.sin(phase) * AMP : 0;
+      bobY += (target - bobY) * Math.min(1, dt * 6); // ease toward target (settles on scroll)
+      heroGroup.position.y = baseY + bobY;
+    });
+    cleanups.push(stopBob);
+  }
 
   // --- boot: wire timelines now, or as soon as the container has layout ----
   let booted = false;

@@ -180,6 +180,43 @@ export function grimeMap() {
   });
 }
 
+// Polymer grip stipple: a jittered grid of small raised dots, as a normal map
+// — the aggressive texture moulded into a pistol frame's grip so it stays put
+// under recoil. Flat roughness alone reads smooth; the per-dot normal is what
+// catches a highlight on each bump as the camera orbits.
+export function stippleNormalMap() {
+  const cached = cache.get('stipple-normal');
+  if (cached) return cached;
+  const size = 128;
+  const height = document.createElement('canvas');
+  height.width = height.height = size;
+  const ctx = height.getContext('2d');
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(0, 0, size, size);
+  const rows = 9;
+  const cell = size / rows;
+  for (let ry = 0; ry < rows; ry++) {
+    for (let rx = 0; rx < rows; rx++) {
+      const cx = (rx + 0.5) * cell + (Math.random() - 0.5) * cell * 0.5;
+      const cy = (ry + 0.5) * cell + (Math.random() - 0.5) * cell * 0.5;
+      const r = cell * (0.32 + Math.random() * 0.16);
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.7, '#a0a0a0');
+      grad.addColorStop(1, '#808080');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  const normalCanvas = heightToNormal(height, 2.8);
+  const tex = new THREE.CanvasTexture(normalCanvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  cache.set('stipple-normal', tex);
+  return tex;
+}
+
 // Heat-bluing colour gradient for exhaust parts: straw-gold at the hot end,
 // through purple and blue, fading to dark steel at the cold end.
 //
@@ -209,6 +246,48 @@ export function heatBlueMap(direction = 'u') {
     for (const [t, c] of stops) grad.addColorStop(t, c);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
+  });
+}
+
+// Warm laminated-wood grain as a COLOUR map — long streaky fibres in varied
+// browns with a few darker grain bands, the look of varnished rifle/tool
+// furniture. Streaks run along the canvas X, so with a standard box UV the
+// grain runs down the part's length (rotate the texture per part if not).
+export function woodGrainMap() {
+  return canvasTexture('wood-grain', 512, 128, (ctx, w, h) => {
+    ctx.fillStyle = '#6e3c1d';
+    ctx.fillRect(0, 0, w, h);
+    // long fibre streaks
+    for (let i = 0; i < 1400; i++) {
+      const y = Math.random() * h;
+      const shade = Math.random();
+      const c =
+        shade < 0.5
+          ? `rgba(${120 + Math.random() * 40},${66 + Math.random() * 26},${30 + Math.random() * 18},0.35)`
+          : `rgba(${64 + Math.random() * 24},${34 + Math.random() * 16},${16 + Math.random() * 10},0.4)`;
+      ctx.strokeStyle = c;
+      ctx.lineWidth = 0.6 + Math.random() * 1.6;
+      ctx.beginPath();
+      const x0 = Math.random() * w;
+      const len = 80 + Math.random() * 260;
+      ctx.moveTo(x0, y);
+      ctx.bezierCurveTo(
+        x0 + len * 0.33, y + (Math.random() - 0.5) * 3,
+        x0 + len * 0.66, y + (Math.random() - 0.5) * 3,
+        x0 + len, y + (Math.random() - 0.5) * 4,
+      );
+      ctx.stroke();
+    }
+    // a few broad darker grain bands
+    for (let i = 0; i < 5; i++) {
+      const y = Math.random() * h;
+      ctx.strokeStyle = `rgba(48,24,10,0.28)`;
+      ctx.lineWidth = 2.5 + Math.random() * 3.5;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.bezierCurveTo(w * 0.33, y + (Math.random() - 0.5) * 10, w * 0.66, y + (Math.random() - 0.5) * 10, w, y + (Math.random() - 0.5) * 8);
+      ctx.stroke();
+    }
   });
 }
 
