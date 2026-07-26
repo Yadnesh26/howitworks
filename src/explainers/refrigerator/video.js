@@ -104,4 +104,55 @@ export default {
       },
     ],
   },
+
+  // Posting copy, consumed by scripts/make-postkit.mjs. The YouTube title is a
+  // different job from the hook: the hook is heard AFTER the click, the title
+  // has to earn it — so it leads with the contradiction, not the topic.
+  platforms: {
+    youtube: {
+      title: "Your Fridge Doesn't Make Cold. Here's What It Actually Does",
+      description: `There is no such thing as cold. Cold is just the absence of heat — so a refrigerator cannot make it. What it actually does is pump heat OUT of the box and dump it into your kitchen.
+
+Follow one charge of refrigerant around the sealed loop: squeezed hotter than your kitchen by the compressor, shedding that heat through the black coils on the back, forced through a tube barely wider than a hair until it flashes to −25 °C, and finally drinking the heat straight out of your food.
+
+Fully procedural 3D — every part in this animation is built from code, no scanned models.
+
+00:00 Cold isn't a thing you can make
+00:10 One sealed loop
+00:20 The compressor
+00:30 The condenser
+00:39 The capillary tube
+00:49 The evaporator
+00:59 Four beats, twenty years`,
+      tags: [
+        'how it works',
+        'refrigerator',
+        'how a refrigerator works',
+        'refrigeration cycle',
+        'heat pump',
+        'compressor',
+        'condenser',
+        'evaporator',
+        'capillary tube',
+        'thermodynamics',
+        'engineering explained',
+        '3d animation',
+        'science',
+        'appliance',
+      ],
+    },
+    shorts: {
+      title: "Your fridge doesn't make cold — it steals heat",
+      hashtags: [
+        '#howitworks',
+        '#refrigerator',
+        '#engineering',
+        '#science',
+        '#heatpump',
+        '#3danimation',
+        '#satisfying',
+        '#shorts',
+      ],
+    },
+  },
 };

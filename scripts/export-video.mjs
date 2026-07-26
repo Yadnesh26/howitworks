@@ -186,7 +186,11 @@ for (const s of shots) {
 //     plus a breath (the old behavior, kept for back-compat / Edge fallback).
 const FLY_SECONDS = 1.6; // camera fly-to, captured as the first slice of a shot
 const LEAD_IN = 0.6; // silent beat over the hero before the voiceover starts
-const TAIL_PAD = 1.0; // hold after the final word
+// Hold after the final word. This is the END CARD's window: the card is
+// scheduled after the last spoken caption, so a short tail squeezes the CTA
+// into an unreadable flash. 3s leaves ~3s of card with the mechanism still
+// looping under it.
+const TAIL_PAD = 3.0;
 const frameMs = 1000 / fps;
 
 const audioDir = join(outRoot, 'audio');
@@ -537,7 +541,11 @@ if (inputs.length) {
       ...fin,
       '-filter_complex', mix,
       '-map', '0:v', '-map', '[out]',
-      '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest',
+      // NOT -shortest: the narration ends before the video does (that tail is
+      // deliberate — it is the end card's window), and -shortest would cut the
+      // video back to the audio and clip the CTA down to a flash. Bound the
+      // output by the rendered video length instead.
+      '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-t', videoDuration.toFixed(3),
       final,
     ],
     'audio mix',
