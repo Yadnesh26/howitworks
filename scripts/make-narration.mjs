@@ -50,7 +50,10 @@ const outDir = resolve('renders', id, 'audio');
 mkdirSync(outDir, { recursive: true });
 
 const key = process.env.ELEVENLABS_API_KEY;
-const voice = opt('voice', 'pNInz6obpgDQGcFmaJgB'); // "Adam" default; pass --voice for the channel voice
+// Precedence: --voice flag > VOICE_ID in .env (the channel voice) > "Adam".
+// Without the .env fallback the channel voice had to be re-typed on every call
+// and any run that forgot it silently reverted to the stock default.
+const voice = opt('voice', process.env.VOICE_ID || 'pNInz6obpgDQGcFmaJgB');
 const MODEL = 'eleven_multilingual_v2';
 // speed: ElevenLabs synth rate (0.7–1.2, 1.0 = normal). We default to 0.9 —
 // narration ~10% slower than natural — because the un-slowed takes felt rushed

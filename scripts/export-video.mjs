@@ -80,7 +80,7 @@ const displayTitle =
 // End card: the closing share/funnel beat. Overridable per explainer; `\n`
 // splits lines. Keep it short — it competes with nothing but it is on screen
 // for ~3s and long CTAs do not get read.
-const endCardText = editorial?.endCard ?? 'Share it with a curious mind\nhowitworks';
+const endCardText = editorial?.endCard ?? 'Share it with a curious mind\nwhatDstuff';
 
 // --- launch page with virtual clock --------------------------------------
 const framesDir = join(outRoot, `${format}-frames`);
@@ -186,7 +186,12 @@ for (const s of shots) {
 //     plus a breath (the old behavior, kept for back-compat / Edge fallback).
 const FLY_SECONDS = 1.6; // camera fly-to, captured as the first slice of a shot
 const LEAD_IN = 0.6; // silent beat over the hero before the voiceover starts
-const TAIL_PAD = 1.0; // hold after the final word
+// Hold after the final word. This is the END CARD's window: the card is
+// scheduled after the last spoken caption, so a short tail squeezes the CTA
+// into an unreadable flash. The final caption also holds ~1s past the last
+// word and the card cannot start until that clears (same bottom slot), so the
+// tail must cover BOTH: 4s leaves the card ~2.8s, mechanism still looping.
+const TAIL_PAD = 4.0;
 const frameMs = 1000 / fps;
 
 const audioDir = join(outRoot, 'audio');
@@ -409,8 +414,11 @@ if (wantCaptions && existsSync(wordsPath)) {
 // around the model mid-video.
 const videoDuration = clock;
 const titleText = wantTitle && displayTitle ? displayTitle : null;
-// The end card must never fight the voice rail: start it after the last spoken
-// word where the tail allows, otherwise claim the last 1.5s and accept overlap.
+// The end card sits in the SAME bottom slot as the captions, so starting it
+// before the last cue clears is a hard collision (two dialogues stacking on one
+// anchor), not just visual competition. It must begin after lastCueEnd — which
+// is why TAIL_PAD has to be generous enough to leave the card a readable window
+// once the final caption's trailing hold has expired.
 let endCardStart = null;
 if (wantEndCard && endCardText) {
   const lastCueEnd = cues.length ? Math.max(...cues.map((c) => c.end)) : 0;
@@ -459,7 +467,7 @@ Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
 Style: Cap,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,${alignment},60,60,${marginV},1
 Style: Hook,${fontName},${Math.round(fontSize * 1.15)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,8,60,60,${hookMarginV},1
 Style: Title,${fontName},${Math.round(fontSize * 0.92)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,4,0,1,5,1,8,60,60,${titleMarginV},1
-Style: EndCard,${fontName},${Math.round(fontSize * 0.85)},&H00FFFFFF,&H00FFFFFF,&H00000000,&HB4000000,-1,0,0,0,100,100,2,0,3,18,0,5,80,80,0,1
+Style: EndCard,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,${alignment},60,60,${marginV},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -537,7 +545,11 @@ if (inputs.length) {
       ...fin,
       '-filter_complex', mix,
       '-map', '0:v', '-map', '[out]',
-      '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest',
+      // NOT -shortest: the narration ends before the video does (that tail is
+      // deliberate — it is the end card's window), and -shortest would cut the
+      // video back to the audio and clip the CTA down to a flash. Bound the
+      // output by the rendered video length instead.
+      '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-t', videoDuration.toFixed(3),
       final,
     ],
     'audio mix',

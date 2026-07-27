@@ -299,12 +299,20 @@ export function buildRefrigerator({ scene }) {
   });
 
   // refrigerant packets riding the chain
+  // Seamless-loop contract: the markers advance a WHOLE NUMBER of inter-arrow
+  // gaps per lap, so at wrap each one lands exactly where its neighbour began
+  // and the set maps onto itself. That decouples marker speed from the timeline
+  // duration — the fan and compressor keep their own pace while the refrigerant
+  // reads calmly. Advancing the whole loop (46/46) per lap was far too fast to
+  // follow, and the cones were too fat to see the tubing behind them.
+  const N_PACKETS = 46;
+  const PACKET_ADVANCE = 18 / N_PACKETS;
   const packets = new THREE.Group();
   packets.userData.arrows = [];
   const UP = new THREE.Vector3(0, 1, 0);
-  for (let i = 0; i < 46; i++) {
-    const a = arrow(0xffffff, 0.1);
-    a.userData.seed = i / 46;
+  for (let i = 0; i < N_PACKETS; i++) {
+    const a = arrow(0xffffff, 0.055);
+    a.userData.seed = i / N_PACKETS;
     a.material.opacity = 0.95;
     packets.userData.arrows.push(a);
     packets.add(a);
@@ -328,9 +336,11 @@ export function buildRefrigerator({ scene }) {
   // heat shimmering up off the back grid (condenser step)
   const heatG = new THREE.Group();
   heatG.userData.arrows = [];
-  for (let i = 0; i < 12; i++) {
-    const a = arrow(0xff8848, 0.13);
-    a.userData.seed = i / 12;
+  const N_HEAT = 12;
+  const HEAT_ADVANCE = 4 / N_HEAT; // whole gaps per lap — see PACKET_ADVANCE
+  for (let i = 0; i < N_HEAT; i++) {
+    const a = arrow(0xff8848, 0.075);
+    a.userData.seed = i / N_HEAT;
     a.userData.lane = -CX + (i % 6) * (2 * CX / 5);
     a.material.opacity = 0;
     heatG.userData.arrows.push(a);
@@ -340,10 +350,12 @@ export function buildRefrigerator({ scene }) {
   // cold air circulating down through the cabinet (evaporator step, revealed)
   const coldG = new THREE.Group();
   coldG.userData.arrows = [];
-  for (let i = 0; i < 10; i++) {
-    const a = arrow(0x66c6ff, 0.13);
+  const N_COLD = 10;
+  const COLD_ADVANCE = 3 / N_COLD; // whole gaps per lap — see PACKET_ADVANCE
+  for (let i = 0; i < N_COLD; i++) {
+    const a = arrow(0x66c6ff, 0.075);
     a.rotation.x = Math.PI; // falling
-    a.userData.seed = i / 10;
+    a.userData.seed = i / N_COLD;
     a.userData.lane = -0.28 + (i % 5) * 0.14;
     a.material.opacity = 0;
     coldG.userData.arrows.push(a);
@@ -378,7 +390,7 @@ export function buildRefrigerator({ scene }) {
     compressor.scale.set(1, pump, 1);
 
     packets.userData.arrows.forEach((a) => {
-      const t = (a.userData.seed + state.flow) % 1;
+      const t = (a.userData.seed + state.flow * PACKET_ADVANCE) % 1;
       a.position.copy(chain.getPointAt(t));
       tangent.copy(chain.getTangentAt(t));
       a.quaternion.setFromUnitVectors(UP, tangent);
@@ -388,12 +400,12 @@ export function buildRefrigerator({ scene }) {
     });
 
     heatG.userData.arrows.forEach((a) => {
-      const t = (state.flow * 0.9 + a.userData.seed) % 1;
+      const t = (state.flow * HEAT_ADVANCE + a.userData.seed) % 1;
       a.position.set(a.userData.lane, 1.0 + t * 1.9, ZC - 0.16 - t * 0.25);
       a.material.opacity = state.heatOut * 0.85 * Math.sin(Math.PI * t);
     });
     coldG.userData.arrows.forEach((a) => {
-      const t = (state.flow * 0.9 + a.userData.seed) % 1;
+      const t = (state.flow * COLD_ADVANCE + a.userData.seed) % 1;
       a.position.set(a.userData.lane, (H - 0.5) - t * (H - 0.9), 0.12);
       a.material.opacity = state.coldAir * 0.85 * Math.sin(Math.PI * t);
     });

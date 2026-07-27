@@ -68,9 +68,9 @@ const steps = [
     id: 'torque',
     heading: 'Trading speed for force',
     body: 'Pick first gear. A 15-tooth pinion on the cluster drives a 35-tooth gear on the mainshaft; count the whole path — 20 teeth into 30, then 15 into 35 — and the engine turns exactly 3.5 times for every single turn of the output. A gearbox never creates power: it trades speed for torque, and in first that trade multiplies the engine’s twist three-and-a-half times — enough to get a tonne and a half rolling from rest.',
-    camera: { position: [0.8, 1.9, 3.9], target: [0.3, 1.3, 0] },
-    onEnter: view(false, false, true),
-    timeline: runLoop('1', 5, 5000),
+    camera: { position: [1.5, 1.75, 2.9], target: [0.5, 1.25, 0] },
+    onEnter: view(false, 'torque', true),
+    timeline: runLoop('1', 5, 9000),
   },
   {
     id: 'mesh',
@@ -93,8 +93,11 @@ const steps = [
     id: 'shift',
     heading: 'What the lever actually moves',
     body: 'Your hand never touches a gear. The lever rocks one of three rails running along the top of the box; each rail carries a fork riding in a groove on one sleeve. Push, and the fork slides its sleeve out of first, through neutral, and into the synchro’s handshake with second. Watch the whole chain at once: fork forward, ring flaring hot as it drags the cluster to half speed, sleeve home — while the mainshaft coasts on, steady, carrying the car.',
-    camera: { position: [2.1, 2.7, 2.6], target: [0.15, 1.55, 0] },
-    onEnter: view(false, 'internal'),
+    // steps 5 and 6 run the SAME setShift choreography, so they must not also
+    // share a vantage or they read as one repeated image. 5 is a tight macro on
+    // the synchro; 6 looks down the rails from above, where the forks live.
+    camera: { position: [0.95, 3.45, 2.15], target: [0.0, 1.8, 0] },
+    onEnter: view(false, 'rails'),
     timeline: demoLoop('setShift', 6500),
   },
   {
