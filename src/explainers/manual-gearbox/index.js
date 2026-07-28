@@ -4,7 +4,14 @@ import { buildGearbox } from './model.js';
 
 // Zoom-in / reveal story: the sealed box first, then the lid comes off and we
 // walk the power path, the constant-mesh trick, the synchro handshake, the
-// shift linkage and reverse — then the case closes and we run all five gears.
+// shift linkage and reverse — then the gear SET, laid out ratio by ratio, and
+// finally the box driven through all five.
+//
+// The last two steps are deliberately a pair: 'ratios' is the bench demo (fixed
+// camera, cluster pinned at one speed, every pair named) and 'run' is the road
+// test (free orbit, engine revs stepping, the drive hopping pair to pair). The
+// explainer used to end without either, so it taught the mechanism five times
+// over and never once said what the five speeds were.
 //
 // Seamlessness: every loop advances the LAYSHAFT a whole number of turns
 // (model.js header explains why that is sufficient); the piecewise demos
@@ -103,20 +110,39 @@ const steps = [
   {
     id: 'reverse',
     heading: 'Backwards is a special case',
-    body: 'There is no synchro for reverse — which is why it only goes in at a standstill. A third gear, the idler, slides bodily along its own shaft until it bridges the cluster and a gear fixed to the mainshaft. One extra gear in the chain flips the direction of rotation: idler in, and the output turns backwards at a stump-pulling 3.2 : 1. These three are the only straight-cut spur gears in the box — simple and strong, and the reason reverse whines while the helical forward gears run quiet.',
+    body: 'There is no synchro for reverse — which is why it only goes in at a standstill. A third gear, the idler, rides on a stub shaft carried by an arm that pivots on the 5-reverse rail; push the lever across and the whole linkage swings it down into mesh, bridging the cluster and a gear fixed to the mainshaft. One extra gear in the chain flips the direction of rotation: idler in, and the output turns backwards at a stump-pulling 3.2 : 1. These three are the only straight-cut spur gears in the box — simple and strong, and the reason reverse whines while the helical forward gears run quiet.',
     camera: { position: [2.7, 2.1, 2.3], target: [0.75, 1.2, 0.3] },
     onEnter: view(false, 'internal'),
     timeline: demoLoop('setReverse', 7000),
   },
   {
+    id: 'ratios',
+    heading: 'What the five speeds actually are',
+    body: 'Here is the whole set, one at a time, with the cluster held at a single steady speed so the only thing changing is what comes out the far end. First is a 15-tooth pinion driving a 35-tooth gear — the biggest reduction in the box. Second and third are progressively closer matches, until third is 25 teeth into 25: one turn of the cluster, one turn of the mainshaft. Fourth drives no gears at all — the sleeve locks the input shaft straight to the output, one to one. And fifth runs the trade backwards: 32 teeth driving 18, so the output turns faster than the engine. That is overdrive, and it is why fifth is for cruising, not for climbing.',
+    hint: 'Each pair has its own colour. The cluster never changes speed — only the output does.',
+    // near-broadside and raised: the five pairs have to read as a ROW you can
+    // compare left to right, which the reveal steps' 3/4 vantage foreshortens
+    // into a single overlapping lump. Raised ~20 deg so the cluster below still
+    // separates from the mainshaft above instead of hiding under it.
+    // target deliberately LEFT of the gear train's centre: that pushes the whole
+    // train into the ~62% of the frame the text panel doesn't cover. Centred on
+    // the model, 3rd and the input pair sat behind the panel — unshowable, on
+    // the one step whose entire job is showing all five.
+    camera: { position: [0.17, 3.3, 4.05], target: [-0.45, 1.45, 0] },
+    onEnter: view(false, 'ratios'),
+    timeline: demoLoop('setRatios', 18000),
+  },
+  {
     id: 'run',
     heading: 'Up through the box',
-    body: 'Case closed, clutch out, away: first, second, third, fourth, fifth. Every snick of the lever is a fork sliding a sleeve, a brass ring matching speeds, dog teeth locking a new pair into the drive. The output flange gains speed with each change while the engine stays in its happy band — five mechanical trades between fuel and road, all chosen by your left hand.',
-    hint: 'In fourth the sleeve locks input straight to output — 1 : 1, no gears working at all. Drag to orbit.',
-    camera: { position: [3.3, 2.5, 3.5], target: [0.15, 1.3, 0] },
+    body: 'Now drive it. Pulling away, road speed climbs steadily — so it is the engine that has to step, and you can watch it happen: revs dip as the clutch comes back in, the lever crosses to a new rail, a fork slides a sleeve, and the rest of the box falls dark around whichever pair has picked up the load. First, second, third, fourth, fifth — five mechanical trades between fuel and road, and the only one that puts no gear pair to work at all is fourth, where the whole set goes dark at once.',
+    hint: 'Drag to orbit. In fourth the drive runs straight through — the cluster spins on, driving nothing.',
+    // deliberately the opposite of 'ratios': lower, swung round to a 3/4, and
+    // pulled back far enough to clear the panel — the road test, not the bench
+    camera: { position: [3.0, 2.4, 3.2], target: [0.4, 1.4, 0] },
     freeOrbit: true,
-    onEnter: view(true, false),
-    timeline: demoLoop('setGears', 9000),
+    onEnter: view(false, 'drive'),
+    timeline: demoLoop('setGears', 14000),
   },
 ];
 

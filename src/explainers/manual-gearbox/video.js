@@ -16,7 +16,7 @@
 // steps: 0 complete (exterior) · 1 inside (neutral, 3 shafts) · 2 torque
 //        (first gear ratio) · 3 mesh (constant mesh, freewheeling) ·
 //        4 synchro (brass ring) · 5 shift (fork + sleeve) · 6 reverse (idler)
-//        · 7 run (all five gears)
+//        · 7 ratios (the five speeds, named) · 8 run (driven through all five)
 export default {
   hook: 'Every gear in here is\nalready spinning.',
 
@@ -77,8 +77,22 @@ export default {
           'Only when the speeds match does a steel sleeve slide over and lock it solid — a tenth of a second, done entirely by feel.',
       },
       {
-        // 8. button — closes the opening loop
+        // 7b. real-world connection — the SET, not just the one gear. Lands the
+        // step's own surprise: fourth engages nothing at all.
         step: 7,
+        seconds: 12,
+        // the ratios step is framed broadside across a 2.6-wide gear train — the
+        // most portrait-hostile shot in the explainer. 2.6 fitted it but left the
+        // mechanism tiny; 1.9 cropped the output flange and pushed the ratio
+        // readout pill into the right edge. 2.2 leaves a margin both sides.
+        dolly: 2.2,
+        caption: 'Five ratios — and fourth uses none of them',
+        narration:
+          "And there are five of those trades sitting in here. First to drag you off the line, fifth spinning the output faster than the engine itself — and fourth, which quietly locks straight through and uses no gears at all.",
+      },
+      {
+        // 8. button — closes the opening loop
+        step: 8,
         seconds: 10,
         dolly: 2.2, // whole-box shot — the widest framing needs the most pull-back
         caption: 'You’re just catching up to a spinning gear.',
@@ -131,13 +145,19 @@ export default {
         step: 6,
         seconds: 24,
         narration:
-          "Reverse skips all of that. There's no synchro for it, which is why you can only select it stopped — instead, a straight-cut idler gear slides in to bridge the gap and flip the rotation backwards. It's the only gear in the box without helical teeth, and exactly why reverse is the one gear that whines.",
+          "Reverse skips all of that. There's no synchro for it, which is why you can only select it stopped — instead, a straight-cut idler gear swings down into mesh on a pivoting arm, bridging the gap and flipping the rotation backwards. It's the only gear in the box without helical teeth, and exactly why reverse is the one gear that whines.",
       },
       {
         step: 7,
+        seconds: 26,
+        narration:
+          "So here's the whole set, with the layshaft held at one steady speed. First is fifteen teeth driving thirty-five — the biggest reduction in the box. Second and third close the gap, until third is twenty-five into twenty-five, an even turn. Fourth drives no gears at all: the sleeve locks the input shaft straight to the output. And fifth runs it backwards — thirty-two teeth driving eighteen, so the output spins faster than the engine. That one's overdrive, and it's why fifth is for cruising, not climbing.",
+      },
+      {
+        step: 8,
         seconds: 22,
         narration:
-          'Case closed, clutch out: first, second, third, fourth, fifth. Every shift is the same trick — a fork nudges a sleeve, a brass ring catches a spinning gear up to speed, and the shaft locks on. You were never grabbing a gear. You were catching up to one that was already spinning.',
+          'Clutch out, and away: first, second, third, fourth, fifth. Every shift is the same trick — a fork nudges a sleeve, a brass ring catches a spinning gear up to speed, and the shaft locks on. You were never grabbing a gear. You were catching up to one that was already spinning.',
       },
     ],
   },
