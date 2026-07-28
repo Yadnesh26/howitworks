@@ -9,6 +9,25 @@ Turns `src/explainers/<id>/` into publishable MP4s. The render is free and
 repeatable — **the editorial layer (hook, narration) is where views
 are won or lost.** Spend your effort there.
 
+## Step 0 — before touching the pipeline (every invocation)
+
+1. **Ask which format(s).** Never assume. Ask the user — short, long, or
+   both — before generating narration or rendering. "Export content for X"
+   is not "export both by default"; get an explicit answer (AskUserQuestion
+   is fine for this).
+2. **Check the editorial is current, not just present.** A `video.js` that
+   already exists is not the same as one that reflects the latest
+   conventions. Before reusing it, check it against the live checklist in
+   `video-scripting`'s SKILL.md (hook = shot 1's first spoken sentence, ABT
+   connective tissue not "and then," one planted loop closed in the button,
+   the stat isolated on its own shot, no per-shot `caption` one-liners now
+   that the verbatim rail exists) and against this file's current shape
+   (single-take narration, `seconds` as a floor, no title-card `hook` burn).
+   If it predates those conventions — check `git log -- src/explainers/<id>/
+   video.js` against the date the skills last changed, or just read it and
+   judge — rewrite it through `video-scripting` first. Do not render a stale
+   script just because a file happens to be sitting there.
+
 ## Pipeline overview
 
 1. `src/explainers/<id>/video.js` — editorial layer (you write this)
@@ -76,8 +95,12 @@ one-fact-per-shot lines are what made earlier exports feel disconnected.
 7. *Real-world connection* — why it matters / a everyday consequence.
 8. *Powerful ending* — callback to beat 1, short and quotable.
 
-- **hook** (shorts, first 3s, top of frame): beat 1, under 12 words, `\n` for
-  line breaks.
+- **hook**: beat 1, under 12 words, `\n` for line breaks. There is no title
+  card anymore — the real hook is shot 1's first spoken sentence, which the
+  verbatim caption rail (see below) surfaces on screen automatically. The
+  `hook` field only still burns as a standalone card on the legacy
+  no-`words.json` caption path; keep it in sync with shot 1's opening line
+  regardless.
 - **short.shots**: ~70s (scale to module complexity — simpler ~50s, complex
   ~90s). **First shot shows the ENTIRE model** (establish, then zoom).
   Wide/horizontal models need per-shot `dolly` (2.0+) to fit portrait. Shorts
@@ -105,11 +128,33 @@ neutral default is used. If the key is missing/invalid it falls back to free
 Edge TTS as per-shot files, and the export still works (just less seamless).
 Re-run this whenever the script changes, then re-run the export to re-mix.
 
-## Step 3 — render
+## Captions — off by default, ask if it's not obvious
+
+The standing default is narration-only, clean footage — don't burn captions
+unless the user asked for them (or the platform/context makes it obvious,
+e.g. "make me a TikTok"). When they're wanted, pass `--captions`; follow the
+`captions-overlay` doctrine (rail-first, verbatim, embed scarce — see that
+skill for the full model):
 
 ```
 node scripts/export-video.mjs <id> --format short --fps 30 --captions
 node scripts/export-video.mjs <id> --format long  --fps 30 --captions
+```
+
+`export-video.mjs` prefers the VERBATIM RAIL: if `make-narration.mjs` wrote
+`renders/<id>/audio/<format>-words.json` (the ElevenLabs word-level
+alignment — it does whenever the ElevenLabs path was used, not the Edge TTS
+fallback), the burned captions are word-synced to the actual narration, with
+an active-word highlight, grouped into short lower-third phrases. No
+per-shot `caption` fields needed — don't add them to video.js, they're the
+legacy fallback path for when no words.json exists. This produces
+`<format>-captioned.mp4` in addition to the silent master and the final mix.
+
+## Step 3 — render
+
+```
+node scripts/export-video.mjs <id> --format short --fps 30 [--captions]
+node scripts/export-video.mjs <id> --format long  --fps 30 [--captions]
 ```
 
 Smoke-test new editorial at `--fps 10` first (renders ~3x faster) before
@@ -149,6 +194,9 @@ Check every frame for:
   frames if unsure — frozen loops have shipped before)
 - **Long-form audio**: narration must not overrun its shot — if a segment
   feels rushed, lengthen `seconds` or cut words
+- **If `--captions` was used**: legible at phone size, not covering the
+  subject, word-sync actually tracks the voice (spot-check a few frames
+  against the audio)
 
 Fix in video.js, re-render. Ship only what you would post.
 
@@ -165,3 +213,6 @@ Fix in video.js, re-render. Ship only what you would post.
   export's injected CSS.
 - Audio mix picks up `renders/<id>/audio/<format>-shot-NN.mp3` +
   `assets/sfx/*.mp3` cues; anything missing is skipped gracefully.
+- Captions burn via libass ASS subtitles with `fontsdir=C:/Windows/Fonts`;
+  ffmpeg runs with cwd = renders dir to dodge Windows path escaping. Burn
+  failure falls back to the uncaptioned master rather than failing the run.
