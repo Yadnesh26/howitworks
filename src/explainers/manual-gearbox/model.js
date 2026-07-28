@@ -9,7 +9,7 @@ import { smudgeMap } from '../../framework/textures.js';
 //
 // PROPORTIONS FIRST (real box: ~600 mm long, barrel ~ø260 mm, bellhousing
 // face ~1.4× the barrel, output flange ~ø120 mm):
-//   case ≈ 1.35 × longer than tall · bell face ≈ 1.4 × barrel width ·
+//   case ≈ 1.27 × longer than tall · bell face ≈ 1.4 × barrel width ·
 //   gear cluster spans ≈ 80 % of the case · biggest gear (1st driven, 35 T)
 //   ≈ 2.3 × the smallest (14 T reverse pinion).
 //
@@ -59,7 +59,18 @@ const PAIRS = {
   g5: { x: 0.92, Nl: 32, Nm: 18 },
 };
 const REV = { x: 0.74, Nlay: 14, Nidler: 16, Nmain: 30 };
-const IDLER_OUT_X = 1.04; // slid rearward, clear of both partners
+
+// --- shift rails ------------------------------------------------------------
+// Above the tallest gear crown, not level with it: the rails sit in the top
+// cover in a real box, and at 1.92 these ran straight through 1st (crown
+// 1.995), 2nd (1.911) and the reverse gear (1.935). Anything that raises a
+// tooth count or MODULE_R has to re-check this — crown = MAIN_Y + Nm*MODULE_R
+// + TOOTH_D/2. Module scope because the reverse arm pivots on the 5-R rail.
+const MAX_CROWN =
+  MAIN_Y + Math.max(...Object.values(PAIRS).map((p) => p.Nm), REV.Nmain) * MODULE_R + TOOTH_D / 2;
+const RAIL_R = 0.018;
+const RAIL_Y = MAX_CROWN + RAIL_R + 0.027; // 2.04 — clears the crown by 0.027
+const RAIL_Z = { s12: 0.13, s34: 0, s5: -0.13 };
 
 const HUBS = { h34: -0.58, h12: 0.28, h5: 1.14 };
 const THROW = 0.13; // sleeve travel from neutral to fully engaged
@@ -69,11 +80,84 @@ const DOG_R = 0.16;
 const CASE_X0 = -1.05;
 const CASE_X1 = 1.12;
 const CASE_Y0 = 0.42;
-const CASE_Y1 = 2.04;
+// Roof set by what has to fit UNDER it, not by a target silhouette: the 35-tooth
+// 1st driven gear crowns at MAIN_Y + 35*MODULE_R + TOOTH_D/2 = 1.995, the shift
+// rails have to clear that crown (see RAIL_Y), and the roof has to clear the
+// rails. Ignoring that chain is how the rails ended up running THROUGH 1st, 2nd
+// and the reverse gear.
+const CASE_Y1 = 2.13;
 const FLANGE_X = 1.62;
 
 // lay→main angle factor per forward gear (driven angle = -lay·R + C)
 const R_FWD = { g1: 15 / 35, g2: 22 / 28, g3: 25 / 25, g5: 32 / 18 };
+
+// --- per-gear identity ------------------------------------------------------
+// Every wheel in a real box is the same steel, and that is exactly why the
+// picture was unreadable: five ratios rendering as one silver caterpillar.
+// Each constant-mesh PAIR (cluster pinion + its mainshaft partner) now shares
+// one desaturated accent steel, so a gear keeps its identity even when it is
+// not the pair carrying drive. The input pair stays neutral — it drives in
+// every gear — and so does 4th, which is direct and has no pair of its own.
+// Kept close to the base steel on purpose: at full saturation the box read as
+// moulded plastic, which is a worse lie than the one this fixes. These are
+// roughly a quarter-saturated, so they read as tinted metal and still separate
+// at a glance. No warm gold in the set on purpose: the power-path highlight is
+// a warm glow, and a gold gear at rest was confusable with a lit one.
+const GEAR_TINT = {
+  g1: 0xc79a8e, // 1st — copper rose
+  g2: 0x9bc0a4, // 2nd — sage
+  g3: 0x8fa9cc, // 3rd — steel blue
+  g5: 0xb09ac9, // 5th — muted violet
+  rev: 0x6fadb0, // reverse — cyan, darker than the rest: it was too close to
+  //                 2nd's sage to pick the idler out of the train at a glance,
+  //                 and reverse being the odd one out is the point of the step
+};
+
+// mainshaft turns per layshaft turn, per gear. 4th bypasses the cluster
+// entirely: the sleeve locks the mainshaft to the INPUT shaft, so it runs at
+// the input pair's ratio. Overall engine:output = (Nl/Nm of input) / this.
+const MAIN_FACTOR = {
+  1: R_FWD.g1,
+  2: R_FWD.g2,
+  3: R_FWD.g3,
+  4: PAIRS.in.Nl / PAIRS.in.Nm,
+  5: R_FWD.g5,
+};
+
+// live-readout copy per gear (the ratio table has always existed in this file
+// and never once reached the screen)
+// Kept short on purpose — this is one pill on one line, and the longest string
+// here sets how far the readout can sit from the frame's right edge.
+const GEAR_INFO = {
+  1: ['1st', '15 : 35 teeth', '3.50 : 1'],
+  2: ['2nd', '22 : 28 teeth', '1.91 : 1'],
+  3: ['3rd', '25 : 25 teeth', '1.50 : 1'],
+  4: ['4th', 'direct drive', '1.00 : 1'],
+  5: ['5th', '32 : 18 — overdrive', '0.84 : 1'],
+};
+
+// --- the shift gate ---------------------------------------------------------
+// [rail select, throw] per gear: select -1 = the 1-2 rail, 0 = 3-4, +1 = 5th;
+// throw is which side of neutral that rail's sleeve sits.
+const GATE = { 1: [-1, 1], 2: [-1, -1], 3: [0, 1], 4: [0, -1], 5: [1, 1] };
+
+// gate pose partway (m in 0..1) through a change from gear `from` to gear `to`:
+// the throw comes out to neutral, the selector crosses to the new rail while it
+// is there, and the throw goes back in. thr passes through zero exactly as sel
+// crosses, so no sleeve is ever part-engaged on a rail the lever has left.
+function gateAt(from, to, m) {
+  const [s0, t0] = GATE[from];
+  const [s1, t1] = GATE[to];
+  const thr = m < 0.5 ? t0 * (1 - m * 2) : t1 * (m * 2 - 1);
+  return [s0 + (s1 - s0) * smooth((m - 0.25) / 0.5), thr];
+}
+
+// how much of `thr` a given rail's sleeve takes, by how close the selector is
+const railWeight = (sel, at) => Math.max(0, 1 - Math.abs(sel - at));
+
+// shortest equivalent of an angle difference, so a crossfade between two mesh
+// poses takes the short way round instead of spinning up to a full extra turn
+const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 const meshC = (alpha, NA, NB) => alpha * (1 + NA / NB) + Math.PI * (1 - 1 / NB);
 
@@ -151,6 +235,21 @@ export function buildGearbox({ scene }) {
     metalness: 0.85,
     roughness: 0.62,
   });
+  // one accent steel per constant-mesh pair (see GEAR_TINT). Same metalness
+  // and roughness as the base gear steel — only the tint of the reflection
+  // changes, so a tinted gear still reads as a machined part, not a toy.
+  const tintSteel = (hex) => {
+    const m = gearSteel.clone();
+    m.color.setHex(hex);
+    return m;
+  };
+  const gearTint = {
+    g1: tintSteel(GEAR_TINT.g1),
+    g2: tintSteel(GEAR_TINT.g2),
+    g3: tintSteel(GEAR_TINT.g3),
+    g5: tintSteel(GEAR_TINT.g5),
+    rev: tintSteel(GEAR_TINT.rev),
+  };
   const shaftSteel = new THREE.MeshPhysicalMaterial({
     color: 0xaeb3bb,
     metalness: 0.9,
@@ -466,7 +565,7 @@ export function buildGearbox({ scene }) {
     mainAsm.add(flange);
   }
   // reverse driven gear — straight-cut, FIXED to the mainshaft
-  const revMain = axGear({ teeth: REV.Nmain, thickness: 0.09 }, gearSteel);
+  const revMain = axGear({ teeth: REV.Nmain, thickness: 0.09 }, gearTint.rev);
   revMain.holder.position.x = REV.x;
   mainAsm.add(revMain.holder);
 
@@ -482,12 +581,12 @@ export function buildGearbox({ scene }) {
   }
   const layGears = {};
   for (const k of ['in', 'g3', 'g2', 'g1', 'g5']) {
-    const lg = axGear({ teeth: PAIRS[k].Nl, hand: 1 }, gearSteel);
+    const lg = axGear({ teeth: PAIRS[k].Nl, hand: 1 }, gearTint[k] ?? gearSteel);
     lg.holder.position.x = PAIRS[k].x;
     clusterAsm.add(lg.holder);
     layGears[k] = lg; // kept so the power path can light the driving gear
   }
-  const layRev = axGear({ teeth: REV.Nlay, thickness: 0.1 }, gearSteel); // spur
+  const layRev = axGear({ teeth: REV.Nlay, thickness: 0.1 }, gearTint.rev); // spur
   layRev.holder.position.x = REV.x;
   clusterAsm.add(layRev.holder);
   // connecting drums make the cluster read as one forging
@@ -518,7 +617,7 @@ export function buildGearbox({ scene }) {
     const pr = p.Nm * MODULE_R;
     const g = gear(
       { teeth: p.Nm, radius: pr + TOOTH_D / 2, toothDepth: TOOTH_D, thickness: GEAR_T, holeR: 0.058 },
-      gearSteel.clone(), // own material — see axGear
+      (gearTint[key] ?? gearSteel).clone(), // own material — see axGear
     );
     twistGeo(g.geometry, -HELIX_SHIFT / pr);
     spinner.add(g);
@@ -604,24 +703,48 @@ export function buildGearbox({ scene }) {
   synchro('s12', HUBS.h12, [-1, 1]); // -1: 2nd · +1: 1st
   synchro('s5', HUBS.h5, [-1]); // -1: 5th
 
-  // --- reverse idler on its own stub shaft ------------------------------------------
+  // --- reverse idler, carried on an arm that pivots on the 5-R rail ------------------
+  // This CANNOT disengage by sliding along X, which is what it used to try.
+  // The idler's axis is pinned (14+16)*MODULE_R = 0.36 from the layshaft by its
+  // own tooth counts, while the cluster's 5th pinion has a 0.419 outer radius,
+  // so clearing 5th on the way past would need
+  //     (14+Ni)*MODULE_R > Ni*MODULE_R + TOOTH_D/2 + 0.419  =>  0.168 > 0.444
+  // which is false for EVERY idler tooth count — the Ni terms cancel. Sliding
+  // rearward ploughed straight through the 5th pinion, and the gaps either side
+  // of the reverse pinion (0.044) are narrower than the idler, so there is
+  // nowhere on that axis to park either.
+  //
+  // So it swings. The whole arm/shaft/gear linkage rotates on the 5-R rail that
+  // actuates it, lifting the idler radially out of mesh without moving it in X
+  // at all — the pivoting-idler arrangement, as real as the sliding one and the
+  // only one this layout can actually hold.
+  const PIVOT_Y = RAIL_Y;
+  const PIVOT_Z = RAIL_Z.s5;
+  const IDLER_SWING = -0.3; // rad: parks 0.668 from the layshaft (needs >0.430)
+  //                           and 0.647 from the mainshaft (needs >0.622)
   const idlerGrp = new THREE.Group();
-  idlerGrp.position.set(IDLER_OUT_X, IDLER_Y, IDLER_Z);
+  idlerGrp.position.set(0, PIVOT_Y, PIVOT_Z);
   group.add(idlerGrp);
-  const idler = axGear({ teeth: REV.Nidler, thickness: 0.09, holeR: 0.045 }, gearSteel); // spur
+  // everything under idlerGrp is placed RELATIVE TO THE PIVOT so it can rotate
+  const idlerLocal = [REV.x, IDLER_Y - PIVOT_Y, IDLER_Z - PIVOT_Z];
+  const idler = axGear({ teeth: REV.Nidler, thickness: 0.09, holeR: 0.045 }, gearTint.rev); // spur
+  idler.holder.position.set(...idlerLocal);
   idlerGrp.add(idler.holder);
   {
+    // the stub shaft swings with the idler it carries, and is now short: at its
+    // old length it reached x = 0.87 and fouled the 5th pinion's 0.849 face on
+    // its own, quite apart from where the gear went.
     const shaftHolder = new THREE.Group();
-    shaftHolder.position.set(0, IDLER_Y, IDLER_Z);
-    const s = rod(0.04, 0.62, shaftSteel, 16);
+    shaftHolder.position.set(0, idlerLocal[1], idlerLocal[2]);
+    const s = rod(0.04, 0.28, shaftSteel, 16);
     s.rotation.z = -Math.PI / 2;
-    s.position.x = 0.56;
+    s.position.x = 0.66;
     shaftHolder.add(s);
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.04, 14, 10), shaftSteel);
     cap.castShadow = true;
-    cap.position.x = 1.18;
+    cap.position.x = 0.79;
     shaftHolder.add(cap);
-    group.add(shaftHolder);
+    idlerGrp.add(shaftHolder);
   }
 
   // --- bearings (context once the case is off) ---------------------------------------
@@ -638,10 +761,9 @@ export function buildGearbox({ scene }) {
   }
 
   // --- shift rails + forks --------------------------------------------------------------
-  const RAIL_Y = 1.92;
-  const railZ = { s12: 0.13, s34: 0, s5: -0.13 };
+  const railZ = RAIL_Z;
   for (const k of ['s12', 's34', 's5']) {
-    const rail = rod(0.018, 2.0, railSteel, 12);
+    const rail = rod(RAIL_R, 2.0, railSteel, 12);
     rail.rotation.z = -Math.PI / 2;
     rail.position.set(-0.9, RAIL_Y, railZ[k]);
     group.add(rail);
@@ -658,8 +780,11 @@ export function buildGearbox({ scene }) {
     shoe.rotation.x = -Math.PI * 0.15; // rotate the gap to the bottom
     shoe.castShadow = true;
     g.add(shoe);
-    const arm = rod(0.024, RAIL_Y - MAIN_Y - 0.24, forkIron, 10);
-    arm.position.set(0, 0.24, railZ[key] * 0.45);
+    // spans from just inside the shoe up to the rail — derived, not a constant,
+    // so raising RAIL_Y doesn't leave the fork floating short of its rail
+    const armLen = RAIL_Y - MAIN_Y - 0.12;
+    const arm = rod(0.024, armLen, forkIron, 10);
+    arm.position.set(0, 0.12 + armLen / 2, railZ[key] * 0.45);
     arm.rotation.x = railZ[key] > 0 ? -0.16 : railZ[key] < 0 ? 0.16 : 0;
     g.add(arm);
     const boss = rod(0.04, 0.1, forkIron, 14);
@@ -673,17 +798,19 @@ export function buildGearbox({ scene }) {
   fork('s34');
   fork('s12');
   fork('s5');
-  // reverse lever arm: bent tube from the 5-R rail across to the idler groove
-  const revArm = new THREE.Group();
+  // reverse lever arm: bent tube from the 5-R rail down to the idler groove.
+  // Drawn pivot-relative and parented to idlerGrp, so the swing carries arm,
+  // shaft and gear as one rigid linkage and the top stays seated on its rail.
   {
     // routed BEHIND the gear train (rear of the box) so it never cuts across
-    // the synchro close-ups; it slides rearward with the idler.
+    // the synchro close-ups
+    const P = (x, y, z) => new THREE.Vector3(x, y - PIVOT_Y, z - PIVOT_Z);
     const curve = new THREE.CatmullRomCurve3(
       [
-        new THREE.Vector3(0.78, RAIL_Y, railZ.s5),
-        new THREE.Vector3(0.9, RAIL_Y - 0.16, 0.12),
-        new THREE.Vector3(0.82, IDLER_Y + 0.34, IDLER_Z - 0.05),
-        new THREE.Vector3(0.74, IDLER_Y + 0.19, IDLER_Z),
+        P(0.78, RAIL_Y, railZ.s5),
+        P(0.9, RAIL_Y - 0.16, 0.12),
+        P(0.82, IDLER_Y + 0.34, IDLER_Z - 0.05),
+        P(0.74, IDLER_Y + 0.19, IDLER_Z),
       ],
       false,
       'catmullrom',
@@ -691,15 +818,13 @@ export function buildGearbox({ scene }) {
     );
     const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 36, 0.02, 10), forkIron);
     tube.castShadow = true;
-    revArm.add(tube);
+    idlerGrp.add(tube);
     const shoe = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.016, 8, 24, Math.PI * 1.2), forkIron);
     shoe.rotation.y = Math.PI / 2;
     shoe.rotation.x = -Math.PI * 0.1;
-    shoe.position.set(0.74, IDLER_Y, IDLER_Z);
-    revArm.add(shoe);
+    shoe.position.set(...idlerLocal);
+    idlerGrp.add(shoe);
   }
-  revArm.position.x = IDLER_OUT_X - REV.x; // NOTE: shoe/curve are at REV.x already
-  group.add(revArm);
 
   // --- power-path chevrons (1st-gear route, torque step) --------------------------------
   // The route ducks OVER the rear gears rather than through them.
@@ -755,7 +880,16 @@ export function buildGearbox({ scene }) {
   marchPath(0);
 
   // --- callouts ----------------------------------------------------------------------
-  const setsOf = { exterior: [], internal: [], mesh: [], synchro: [], torque: [], rails: [] };
+  const setsOf = {
+    exterior: [],
+    internal: [],
+    mesh: [],
+    synchro: [],
+    torque: [],
+    rails: [],
+    ratios: [],
+    drive: [],
+  };
   function addCallout(set, parent, text, offset, dir, len) {
     const c = callout(text, { dir, len });
     c.position.set(...offset);
@@ -774,11 +908,13 @@ export function buildGearbox({ scene }) {
   addCallout('internal', group, 'Mainshaft', [1.34, 1.68, 0.05], 55, 50);
   addCallout('internal', group, '1st gear pair — 15 : 35 teeth', [0.56, 2.06, 0.1], 75, 56);
   addCallout('internal', group, 'Synchro sleeve (1st-2nd)', [HUBS.h12, 1.3, 0.28], -35, 66);
-  // attached to idlerGrp (not the static 'group') so the leader tracks the
-  // idler as it slides between disengaged (IDLER_OUT_X) and engaged (REV.x) —
-  // a fixed world anchor pointed at empty space once the gear moved away.
-  addCallout('internal', idlerGrp, 'Reverse idler', [0, 0.2, 0], 15, 58);
-  addCallout('internal', group, 'Shift rails & forks', [-0.4, 1.96, 0.05], 75, 90);
+  // attached to idlerGrp (not the static 'group') so the leader tracks the idler
+  // through its swing — a fixed world anchor pointed at empty space the moment
+  // the gear moved away. Pivot-relative, like everything else under idlerGrp.
+  addCallout('internal', idlerGrp, 'Reverse idler', [idlerLocal[0], idlerLocal[1] + 0.2, idlerLocal[2]], 15, 58);
+  // led sideways rather than straight up: the rails moved 0.12 higher and a
+  // near-vertical leader ran off the top of the tight 'reverse' framing
+  addCallout('internal', group, 'Shift rails & forks', [-0.4, 2.08, 0.05], 20, 60);
   addCallout('internal', group, 'Output flange', [1.62, 1.44, 0.1], -20, 20);
 
   // 'torque' step: the ratio IS the lesson, so name both gears of the working
@@ -793,8 +929,8 @@ export function buildGearbox({ scene }) {
   // 'rails' step looks DOWN on the box, where the crowded 'internal' set is
   // mostly edge-on and unreadable. Sparse set anchored on what that vantage
   // actually shows: the rails, the fork, and the sleeve it drags.
-  addCallout('rails', group, 'Shift rails', [-0.4, 1.96, 0.05], 75, 90);
-  addCallout('rails', group, 'Fork — rides the sleeve groove', [HUBS.h12, 1.92, 0.22], 18, 96);
+  addCallout('rails', group, 'Shift rails', [-0.4, 2.08, 0.05], 75, 90);
+  addCallout('rails', group, 'Fork — rides the sleeve groove', [HUBS.h12, 2.0, 0.22], 18, 96);
   addCallout('rails', group, 'Sleeve — splined to the mainshaft', [HUBS.h12, 1.5, 0.34], -42, 92);
 
   // 'mesh' step (constant-mesh concept) gets its OWN sparse pair — the full
@@ -809,51 +945,113 @@ export function buildGearbox({ scene }) {
   addCallout('synchro', group, '2nd gear — freewheeling', [0.0, 1.95, 0.08], 135, 62);
   addCallout('synchro', group, 'Friction cone', [speedGears.g2.dogX + 0.04, 1.42, 0.14], -20, 90);
 
+  // 'ratios' — the gear set laid out as a set. The pairs carry accent tints
+  // (GEAR_TINT) so these three anchors can stay sparse: what changes across the
+  // lap is which pair lights up and what the readout says.
+  // same anchor/leader the 'internal' set proves legible at a comparable
+  // vantage — led up and left from under the cluster, clear of the panel.
+  addCallout('ratios', group, 'Cluster — one steady speed', [-0.1, 0.56, 0.3], -60, 64);
+
+  // Gear wheels numbered like a workshop diagram, so "which wheel is 3rd?" has
+  // an answer that doesn't depend on remembering a colour. Each tag is pinned to
+  // its own wheel's rim on the +Z side, which also stacks them by gear size.
+  // 4th tags the INPUT gear, because that is where its dog ring lives — 4th
+  // engages no pair of its own, which is why its tag sits somewhere surprising.
+  for (const [text, x, teeth] of [
+    ['1st', PAIRS.g1.x, PAIRS.g1.Nm],
+    ['2nd', PAIRS.g2.x, PAIRS.g2.Nm],
+    ['3rd', PAIRS.g3.x, PAIRS.g3.Nm],
+    ['5th', PAIRS.g5.x, PAIRS.g5.Nm],
+    ['4th · direct', PAIRS.in.x, PAIRS.in.Nm],
+    ['R', REV.x, REV.Nmain],
+  ]) {
+    addCallout('ratios', group, text, [x, MAIN_Y, teeth * MODULE_R + TOOTH_D / 2], 55, 34);
+  }
+
+  // The live gear readout, shared by the ratios walk and the finale. Two
+  // objects rather than one in both sets: setLabels drives visibility per set,
+  // so an object listed twice would have whichever set iterates last win.
+  const readouts = ['ratios', 'drive'].map((set) => {
+    const c = callout('—', { dir: 22, len: 82 });
+    // anchored left of the box's centre: the pill grows rightward and the
+    // longest gear string ran off the frame edge from further over
+    c.position.set(-0.1, 2.3, 0);
+    group.add(c);
+    c.visible = false;
+    setsOf[set].push(c);
+    return c;
+  });
+  function setReadout(g) {
+    const [name, teeth, ratio] = GEAR_INFO[g];
+    for (const c of readouts) c.setText(`${name}  ·  ${teeth}  ·  ${ratio}`);
+  }
+
   // --- pose -------------------------------------------------------------------------
   // Everything derives from (layshaft angle, mainshaft angle, sleeve throws,
   // idler engagement). Speed gears ALWAYS follow the layshaft — they are never
   // disconnected; that is the constant-mesh fact the explainer hangs on.
   const state = { s12: 0, s34: 0, s5: 0, idler: 0, ringGlow: 0, ringKey: null };
 
-  // --- power path highlight -----------------------------------------------------------
+  // --- power path: dim what ISN'T working ---------------------------------------------
   // "Which gears are carrying the drive RIGHT NOW?" was unanswerable from the
-  // picture: every gear is the same steel, so a 15-tooth pinion driving a
+  // picture: every gear was the same steel, so a 15-tooth pinion driving a
   // 35-tooth wheel read as two identical discs and the whole speed-for-torque
-  // trade was invisible. The pair actually under load now glows; the rest of
-  // the box stays dull, so the eye follows the torque instead of hunting.
-  const PATH_HOT = 0xffa23a;
-  const litMeshes = [];
-  function litClear() {
-    for (const m of litMeshes) {
-      m.material.emissive.setHex(0x000000);
-      m.material.emissiveIntensity = 0;
+  // trade was invisible.
+  //
+  // This used to add an orange emissive glow to the working pair, which was the
+  // wrong way round twice over. It blew out that pair's accent tint — a lit sage
+  // 2nd came out the same cream as a resting gold 3rd — and it made "working"
+  // mean "emitting light", which no gear has ever done. Now the working pair is
+  // left ALONE at its true colour and everything at rest sinks toward black.
+  // Same thing a lighting cameraman would do, and it survives any tint palette.
+  const DIM = new THREE.Color(0x14171c);
+  const DIM_DEPTH = 0.74; // how far a resting gear travels toward DIM
+  const dimmable = [
+    inputGear.mesh,
+    layGears.in.mesh,
+    layGears.g1.mesh,
+    layGears.g2.mesh,
+    layGears.g3.mesh,
+    layGears.g5.mesh,
+    layRev.mesh,
+    idler.mesh,
+    revMain.mesh,
+    speedGears.g1.mesh,
+    speedGears.g2.mesh,
+    speedGears.g3.mesh,
+    speedGears.g5.mesh,
+  ].map((mesh) => ({ mesh, base: mesh.material.color.clone() }));
+
+  // '1'|'2'|'3'|'5' forward pair · '4' direct · 'R' reverse · null/'N' nothing
+  // engaged. `fade` eases the dimming off and back on through a gear change so
+  // the drive hands over instead of snapping — at a lap boundary a snap is a
+  // visible pop in an otherwise identical pose.
+  function setPowerHighlight(gearName, fade = 1) {
+    const engaged = !!gearName && gearName !== 'N';
+    const live = new Set();
+    if (engaged && gearName !== '4') {
+      // the constant-mesh input pair carries drive in every gear but 4th
+      live.add(inputGear.mesh);
+      live.add(layGears.in.mesh);
+      if (gearName === 'R') {
+        live.add(layRev.mesh);
+        live.add(idler.mesh);
+        live.add(revMain.mesh);
+      } else {
+        const k = { 1: 'g1', 2: 'g2', 3: 'g3', 5: 'g5' }[gearName];
+        if (k) {
+          live.add(layGears[k].mesh);
+          live.add(speedGears[k].mesh);
+        }
+      }
     }
-    litMeshes.length = 0;
-  }
-  function lit(mesh) {
-    if (!mesh) return;
-    mesh.material.emissive.setHex(PATH_HOT);
-    mesh.material.emissiveIntensity = 0.6;
-    litMeshes.push(mesh);
-  }
-  // '1'|'2'|'3'|'5' forward pair · '4' direct · 'R' reverse · null/'N' off
-  function setPowerHighlight(gearName) {
-    litClear();
-    if (!gearName || gearName === 'N') return;
-    // the constant-mesh input pair carries drive in every gear but neutral
-    lit(inputGear.mesh);
-    lit(layGears.in.mesh);
-    if (gearName === '4') return; // direct drive: input locks to output, no pair works
-    if (gearName === 'R') {
-      lit(layRev.mesh);
-      lit(idler.mesh);
-      lit(revMain.mesh);
-      return;
+    // 4th leaves `live` empty deliberately: it is direct drive, so the whole
+    // gear set goes dark while the shaft threading through it stays lit. That
+    // picture IS the lesson, and it is the one thing no other gear looks like.
+    const depth = engaged ? clamp01(fade) * DIM_DEPTH : 0;
+    for (const { mesh, base } of dimmable) {
+      mesh.material.color.copy(base).lerp(DIM, live.has(mesh) ? 0 : depth);
     }
-    const k = { 1: 'g1', 2: 'g2', 3: 'g3', 5: 'g5' }[gearName];
-    if (!k) return;
-    lit(layGears[k].mesh);
-    lit(speedGears[k].mesh);
   }
 
   function applyGears(lay) {
@@ -868,9 +1066,7 @@ export function buildGearbox({ scene }) {
       sleeves[k].grp.position.x = x;
       forks[k].grp.position.x = x;
     }
-    const ix = IDLER_OUT_X + (REV.x - IDLER_OUT_X) * state.idler;
-    idlerGrp.position.x = ix;
-    revArm.position.x = ix - REV.x;
+    idlerGrp.rotation.x = (1 - state.idler) * IDLER_SWING;
     for (const r of blockerRings) {
       const press = state.ringKey === r.key ? state.ringGlow : 0;
       r.holder.position.x = r.homeX + r.side * press * 0.02;
@@ -966,66 +1162,112 @@ export function buildGearbox({ scene }) {
     setPowerHighlight(state.idler > 0.5 ? 'R' : null);
   }
 
-  // -- finale, case closed: up through all five gears ----------------------------------
-  // Only the lever, clutch splines and output flange are visible; both spin
-  // rates are integrated numerically so the flange gains speed smoothly
-  // through each ratio and glides back down for the wrap.
-  const OVERALL = { 1: 3.5, 2: 1.5 / R_FWD.g2, 3: 1.5, 4: 1, 5: 1.5 / R_FWD.g5 };
-  const GATE = { 1: [-1, 1], 2: [-1, -1], 3: [0, 1], 4: [0, -1], 5: [1, 1] }; // [select, throw]
-  const G_SPAN = 0.174; // per-gear slice; the 0.13 tail brakes back down for the wrap
-  const gearAt = (u) => Math.min(5, 1 + Math.floor(u / G_SPAN));
-  const flangeRate = (u) => {
-    if (u >= G_SPAN * 5) return 1.3 - (1.3 - 0.286) * smooth((u - G_SPAN * 5) / (1 - G_SPAN * 5));
-    const g = gearAt(u);
-    const lu = (u - (g - 1) * G_SPAN) / G_SPAN;
-    const v0 = 0.286 + (g - 1) * 0.2535;
-    return lu < 0.3 ? v0 : v0 + (lu - 0.3) * 0.362;
-  };
-  const gearsFlange = profileTable(flangeRate, 8);
-  const gearsInput = profileTable((u) => {
-    const g = u >= G_SPAN * 5 ? 1 : gearAt(u);
-    let rate = flangeRate(u) * OVERALL[g];
-    if (u < G_SPAN * 5 && g > 1) {
-      const lu = (u - (g - 1) * G_SPAN) / G_SPAN;
-      if (lu < 0.3) rate *= 0.35 + 0.65 * smooth(lu / 0.3); // clutch-in rev dip
-    }
-    return rate;
-  }, 14);
+  // -- walking up through the gears ----------------------------------------------------
+  // Shared by the ratios walk and the finale; they differ only in how fast the
+  // cluster turns and how the camera and copy frame it.
+  //
+  // The mainshaft is POSED from the engaged gear's exact mesh angle rather than
+  // integrated separately, which buys two things the old finale did not have.
+  // Its rate is then identically the engaged speed gear's rate, so a locked
+  // sleeve never creeps against its dog ring (invisible under a closed case,
+  // glaring once the case comes off). And because the pose is a function of the
+  // layshaft angle, not an accumulation, the wrap is exact — no drift to chase.
+  //
+  // Through a change the sleeve is out and the shaft is genuinely free, so the
+  // pose crossfades between the two gears' mesh angles (the short way round).
+  //
+  // SEAMLESSNESS: `laps` must be a multiple of 18. Whole layshaft turns settle
+  // the cluster and every speed gear (each advances a whole number of teeth),
+  // but two things ride other shafts: the input assembly turns lay x 3/2, so
+  // laps must be even, and at the wrap the box is in 5th, where the mainshaft
+  // turns lay x 16/9, so laps must divide by 9. Even and /9 => /18.
+  const FWD_KEY = { 1: 'g1', 2: 'g2', 3: 'g3', 5: 'g5' };
+  const mainThetaFor = (g, lay) => (g === 4 ? inputTheta(lay) : fwdTheta(FWD_KEY[g], lay));
+  // which blocker ring each gear engages through — `${rail}${side}`, matching
+  // the keys synchro() pushes (s12: -1 is 2nd / +1 is 1st · s34: -1 is 4th /
+  // +1 is 3rd · s5: -1 is 5th)
+  const RING_KEY = { 1: 's121', 2: 's12-1', 3: 's341', 4: 's34-1', 5: 's5-1' };
 
-  function setGears(u) {
-    u = ((u % 1) + 1) % 1;
-    mainAsm.rotation.x = -gearsFlange.at(u);
-    const inputA = -gearsInput.at(u);
-    inputAsm.rotation.x = inputA;
-    applyGears(-inputA / (PAIRS.in.Nl / PAIRS.in.Nm)); // hidden, kept coherent
-    let sel;
-    let thr;
-    if (u >= G_SPAN * 5) {
-      [sel, thr] = GATE[5];
-    } else {
-      const g = gearAt(u);
-      const lu = (u - (g - 1) * G_SPAN) / G_SPAN;
-      if (lu < 0.3 && g > 1) {
-        const [s0, t0] = GATE[g - 1];
-        const [s1, t1] = GATE[g];
-        const m = smooth(lu / 0.3);
-        thr = m < 0.5 ? t0 * (1 - m * 2) : t1 * (m * 2 - 1); // out through neutral, back in
-        sel = s0 + (s1 - s0) * smooth((m - 0.25) / 0.5);
+  function gearWalk({ laps, shiftFrac, layRate }) {
+    const span = 1 / 5;
+    const gearAtU = (u) => Math.min(5, 1 + Math.floor(u / span));
+    const lay = profileTable(layRate, laps);
+    return (u) => {
+      u = ((u % 1) + 1) % 1;
+      const g = gearAtU(u);
+      const lu = (u - (g - 1) * span) / span;
+      const shifting = lu < shiftFrac;
+      const prev = g === 1 ? 5 : g - 1; // the lap wraps 5th -> 1st
+      const m = shifting ? lu / shiftFrac : 1;
+      const [sel, thr] = shifting ? gateAt(prev, g, m) : GATE[g];
+      const a = lay.at(u);
+
+      state.idler = 0;
+      // the brass ring bites in the back half of the change, as the sleeve comes
+      // out of neutral and closes on the new gear — the same handshake step 5
+      // shows in macro, here at speed, once per shift
+      state.ringKey = RING_KEY[g];
+      state.ringGlow = shifting ? win(m, 0.45, 0.62) * (1 - win(m, 0.78, 0.95)) : 0;
+      state.s12 = thr * railWeight(sel, -1);
+      state.s34 = thr * railWeight(sel, 0);
+      state.s5 = -thr * railWeight(sel, 1); // 5th engages on the -X side
+      applyGears(a);
+      inputAsm.rotation.x = inputTheta(a);
+      const now = mainThetaFor(g, a);
+      if (shifting) {
+        const was = mainThetaFor(prev, a);
+        mainAsm.rotation.x = was + wrapPi(now - was) * smooth(m);
       } else {
-        [sel, thr] = GATE[g];
+        mainAsm.rotation.x = now;
       }
-    }
-    leverPivot.rotation.z = -thr * 0.28;
-    leverPivot.rotation.x = sel * 0.2;
-    state.s12 = 0;
-    state.s34 = 0;
-    state.s5 = 0;
-    state.idler = 0;
-    applySleeves();
-    // pin the highlight too — otherwise whichever pair was lit by the previous
-    // step stays lit under the closed case and leaks back out on scroll-up
-    setPowerHighlight(String(u >= G_SPAN * 5 ? 5 : gearAt(u)));
+      applySleeves();
+      leverPivot.rotation.z = -thr * 0.28;
+      leverPivot.rotation.x = sel * 0.2;
+      // Drive hands over mid-change: the old pair fades out, nothing carries
+      // load across the middle, the new pair fades in. Snapping it off instead
+      // left the lap boundary with an identical pose but a visible lighting
+      // pop, since the lap both ends and begins holding 5th.
+      const half = shifting ? Math.abs(m * 2 - 1) : 1;
+      const carrying = shifting && m < 0.5 ? prev : g;
+      setPowerHighlight(String(carrying), half);
+      setReadout(carrying);
+    };
   }
+
+  // -- the five ratios, one at a time --------------------------------------------------
+  // A bench demo, and the copy says so: the cluster is held at ONE steady speed
+  // and the box walked 1-2-3-4-5, so the only thing that changes across the lap
+  // is how fast the mainshaft comes out the far end. That side-by-side is the
+  // comparison this explainer never made — it taught the mechanism five times
+  // and the gear set not once.
+  const setRatios = gearWalk({ laps: 18, shiftFrac: 0.26, layRate: () => 1 });
+
+  // -- finale: drive it ----------------------------------------------------------------
+  // Same kinematics, opposite story: this is the car accelerating. Road speed
+  // climbs smoothly the whole way, so the ENGINE is what steps — revs dipping at
+  // every change as the clutch comes in, then building again. That divergence,
+  // engine falling while the output keeps rising, is the reason for having five.
+  const RUN_TAIL = 0.14; // the run brakes back to its opening speed for the wrap
+  const runOut = (u) => {
+    const a = 0.34;
+    const b = 0.98;
+    if (u < 1 - RUN_TAIL) return a + (b - a) * (u / (1 - RUN_TAIL));
+    return b - (b - a) * smooth((u - (1 - RUN_TAIL)) / RUN_TAIL);
+  };
+  const RUN_SHIFT = 0.22;
+  const setGears = gearWalk({
+    laps: 18,
+    shiftFrac: RUN_SHIFT,
+    layRate: (u) => {
+      const g = Math.min(5, 1 + Math.floor(u * 5));
+      const lu = (u * 5) % 1;
+      const revs = runOut(u) / MAIN_FACTOR[g];
+      if (lu >= RUN_SHIFT) return revs;
+      // clutch in: the engine is dragged from the old gear's revs to the new
+      const from = runOut(u) / MAIN_FACTOR[g === 1 ? 5 : g - 1];
+      return from + (revs - from) * smooth(lu / RUN_SHIFT);
+    },
+  });
 
   // -- layer + label switches ------------------------------------------------------------
   function setCase(v) {
@@ -1052,6 +1294,7 @@ export function buildGearbox({ scene }) {
     setNeutral,
     setShift,
     setReverse,
+    setRatios,
     setGears,
     setCase,
     setLabels,
