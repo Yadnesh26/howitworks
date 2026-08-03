@@ -1,6 +1,7 @@
 // Generate narration audio for an explainer's video export.
 //
-//   node scripts/make-narration.mjs <explainer-id> [--format long|short] [--voice <id>] [--speed 0.9] [--keep-dashes]
+//   node scripts/make-narration.mjs <explainer-id> [--format long|short] [--voice <id>]
+//     [--speed 0.9] [--keep-dashes] [--no-trim-pauses] [--max-pause 0.3] [--target-pause 0.15]
 //
 // SEAMLESS SINGLE-TAKE (ElevenLabs): all of a format's narration lines are
 // concatenated into ONE script and synthesized in a SINGLE call to the
@@ -16,9 +17,22 @@
 // FALLBACK (no ELEVENLABS_API_KEY, or the timestamps call fails): Microsoft
 // Edge neural TTS, one file per shot (renders/<id>/audio/<format>-shot-NN.mp3)
 // — the older per-shot path, still fully supported by the exporter.
-import { mkdirSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+//
+// PAUSE TRIMMING (single-take path only, default ON): ElevenLabs' own silence
+// at periods/commas is a delivery characteristic of the model, not something
+// the text or the `speed` knob fully controls. Since the alignment gives
+// exact word timing, any gap over --max-pause gets cut down to --target-pause
+// directly in the audio (ffmpeg atrim+concat), and every later word/shot
+// timestamp shifts back to match — captions and shot pacing stay in sync
+// with the shortened take. Disable with --no-trim-pauses.
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
+
+const require = createRequire(import.meta.url);
+const ffmpeg = require('ffmpeg-static');
 
 // .env is never auto-loaded into process.env for a plain `node script.mjs`
 // invocation (that's a Vite-dev-server-only behavior) — without this, a key
@@ -73,6 +87,19 @@ const VOICE_SETTINGS = { stability: 0.5, similarity_boost: 0.75, style: 0.0, use
 // spaced —/– and ellipses are touched; hyphens in "single-cylinder" are U+002D
 // and never match.
 const keepDashes = args.includes('--keep-dashes');
+
+// Pause TRIMMING (default ON; --no-trim-pauses to disable): normalizePauses
+// above fixes PUNCTUATION (dashes/ellipses become comma-length beats), but it
+// can't touch how long ElevenLabs actually holds silence at a period or comma
+// — that's the model's own delivery, not something in the text. Since we have
+// exact word timing from the alignment, we trim it directly in the AUDIO
+// after synthesis: any gap between two words longer than --max-pause gets cut
+// down to --target-pause, and every later word/shot timestamp shifts back to
+// match, so captions and shot pacing stay in sync with the shortened audio.
+const trimPausesEnabled = !args.includes('--no-trim-pauses');
+const MAX_PAUSE = Number(opt('max-pause', '0.3'));
+const TARGET_PAUSE = Number(opt('target-pause', '0.15'));
+
 const normalizePauses = (t) =>
   keepDashes
     ? t
@@ -123,6 +150,74 @@ function wordsFromAlignment(chars, starts, ends) {
   }
   if (cur) words.push({ t: cur, s: Number(s.toFixed(3)), e: Number(e.toFixed(3)) });
   return words;
+}
+
+// Shorten over-long silence directly in the AUDIO, then shift every
+// downstream timestamp to match. Cuts are placed a MIN_EDGE buffer inside
+// each gap (never right at the word boundary) so we're never at risk of
+// slicing into actual speech — worst case a cut is skipped, never a clipped
+// word. `timings` values are shot {start,end} pairs (same seconds-since-take
+// axis as `words`), so one shiftTime covers both.
+function trimPauses(audioBuffer, words, timings, { maxPause, targetPause }) {
+  const MIN_EDGE = 0.04;
+  const cuts = []; // { start, end } in ORIGINAL-audio seconds, to be removed
+  for (let i = 0; i < words.length - 1; i++) {
+    const gap = words[i + 1].s - words[i].e;
+    if (gap <= maxPause) continue;
+    const removeAmount = gap - targetPause;
+    const cutStart = words[i].e + MIN_EDGE;
+    const cutEnd = Math.min(cutStart + removeAmount, words[i + 1].s - MIN_EDGE);
+    if (cutEnd > cutStart) cuts.push({ start: cutStart, end: cutEnd });
+  }
+  if (!cuts.length) return { audio: audioBuffer, words, timings, cutCount: 0 };
+
+  const totalDuration = Math.max(...words.map((w) => w.e)) + 1; // pad past the last word for any trailing audio
+  const keep = [];
+  let cursor = 0;
+  for (const c of cuts) {
+    if (c.start > cursor) keep.push([cursor, c.start]);
+    cursor = c.end;
+  }
+  keep.push([cursor, totalDuration]);
+
+  const tmpIn = join(outDir, `.trim-in-${Date.now()}.mp3`);
+  const tmpOut = join(outDir, `.trim-out-${Date.now()}.mp3`);
+  writeFileSync(tmpIn, audioBuffer);
+  const filterParts = keep.map(
+    ([s, e], k) => `[0:a]atrim=start=${s.toFixed(3)}:end=${e.toFixed(3)},asetpts=PTS-STARTPTS[a${k}]`,
+  );
+  const concatIn = keep.map((_, k) => `[a${k}]`).join('');
+  const filterComplex = `${filterParts.join(';')};${concatIn}concat=n=${keep.length}:v=0:a=1[out]`;
+  const r = spawnSync(ffmpeg, [
+    '-y', '-i', tmpIn,
+    '-filter_complex', filterComplex,
+    '-map', '[out]',
+    tmpOut,
+  ]);
+  if (r.status !== 0) {
+    rmSync(tmpIn, { force: true });
+    rmSync(tmpOut, { force: true });
+    throw new Error(`pause-trim ffmpeg failed:\n${r.stderr?.toString().slice(-1500)}`);
+  }
+  const trimmedAudio = readFileSync(tmpOut);
+  rmSync(tmpIn, { force: true });
+  rmSync(tmpOut, { force: true });
+
+  const shiftTime = (t) => {
+    let removed = 0;
+    for (const c of cuts) {
+      if (c.end <= t) removed += c.end - c.start;
+      else if (c.start < t) removed += t - c.start; // shouldn't happen (MIN_EDGE keeps cuts clear of word bounds)
+      else break;
+    }
+    return Number((t - removed).toFixed(3));
+  };
+  const shiftedWords = words.map((w) => ({ t: w.t, s: shiftTime(w.s), e: shiftTime(w.e) }));
+  const shiftedTimings = {};
+  for (const [k, v] of Object.entries(timings)) {
+    shiftedTimings[k] = { start: shiftTime(v.start), end: shiftTime(v.end) };
+  }
+  return { audio: trimmedAudio, words: shiftedWords, timings: shiftedTimings, cutCount: cuts.length };
 }
 
 async function elevenlabsSingleTake(fullText) {
@@ -201,12 +296,24 @@ if (key) {
       };
     }
     // word-level timing for voice-matched captions (the exporter's rail source)
-    const words = wordsFromAlignment(chars, starts, ends);
-    writeFileSync(join(outDir, `${format}-full.mp3`), audio);
-    writeFileSync(join(outDir, `${format}-timings.json`), JSON.stringify(timings, null, 2));
+    let words = wordsFromAlignment(chars, starts, ends);
+    let finalAudio = audio;
+    let finalTimings = timings;
+    let trimNote = '';
+    if (trimPausesEnabled) {
+      const trimmed = trimPauses(audio, words, timings, { maxPause: MAX_PAUSE, targetPause: TARGET_PAUSE });
+      finalAudio = trimmed.audio;
+      words = trimmed.words;
+      finalTimings = trimmed.timings;
+      if (trimmed.cutCount) {
+        trimNote = ` (trimmed ${trimmed.cutCount} pause${trimmed.cutCount === 1 ? '' : 's'} > ${MAX_PAUSE}s to ${TARGET_PAUSE}s)`;
+      }
+    }
+    writeFileSync(join(outDir, `${format}-full.mp3`), finalAudio);
+    writeFileSync(join(outDir, `${format}-timings.json`), JSON.stringify(finalTimings, null, 2));
     writeFileSync(join(outDir, `${format}-words.json`), JSON.stringify(words));
-    const total = Math.max(...Object.values(timings).map((t) => t.end));
-    console.log(`single take: ${format}-full.mp3 (${total.toFixed(1)}s) + ${format}-timings.json (${spans.length} shots) + ${format}-words.json (${words.length} words)`);
+    const total = Math.max(...Object.values(finalTimings).map((t) => t.end));
+    console.log(`single take: ${format}-full.mp3 (${total.toFixed(1)}s)${trimNote} + ${format}-timings.json (${spans.length} shots) + ${format}-words.json (${words.length} words)`);
   } catch (err) {
     console.error(`single-take failed (${err.message}) — falling back to Edge per-shot`);
     await edgeTtsPerShot();

@@ -38,6 +38,28 @@ export const materials = {
     }),
   chrome: (color = 0xd8dde3) =>
     new THREE.MeshPhysicalMaterial({ color, metalness: 1, roughness: 0.09 }),
+  // Brushed metal with the anisotropic stretched-highlight [VALIDATED,
+  // 2026-07-28, air-conditioner copper tubing]. `rotation` is in radians and
+  // must match the geometry's UV layout: on TubeGeometry (drawn pipe/tube —
+  // U wraps the circumference, V runs along the length) the grain runs along
+  // the length, so pass Math.PI/2 to rotate the stretch off the default
+  // U-alignment onto V. On a flat/lathe surface where U already runs the
+  // brushing direction, pass 0. Always eyeball a close-up screenshot before
+  // trusting the rotation — perpendicular-to-grain stretch looks wrong
+  // instantly, per the polish-explainer skill.
+  anisoSteel: (color = 0xc6ccd4, rotation = 0) => {
+    const mat = new THREE.MeshPhysicalMaterial({
+      color,
+      metalness: 1,
+      roughness: 0.3,
+      roughnessMap: brushedMap(),
+      normalMap: brushedNormalMap(),
+      normalScale: new THREE.Vector2(0.4, 0.4),
+      anisotropy: 0.7,
+      anisotropyRotation: rotation,
+    });
+    return mat;
+  },
   paintedMetal: (color) =>
     new THREE.MeshPhysicalMaterial({
       color,

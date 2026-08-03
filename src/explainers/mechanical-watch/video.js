@@ -7,47 +7,81 @@
 // steps: 0 face · 1 inside the case · 2 mainspring · 3 gear train
 //        4 escapement · 5 balance wheel · 6 back to the hands · 7 whole watch
 export default {
-  hook: 'No battery. No electricity.\nSo what keeps this ticking?',
+  // hook is shot 1's spoken line verbatim — the verbatim caption rail IS the
+  // on-screen hook now, there's no separate title card for it (see
+  // video-scripting/export-content skills). \n only for the legacy no-words.json
+  // fallback path's card line breaks.
+  hook: 'There’s no battery in this watch.\nNo electricity, anywhere inside it.',
 
-  // 9:16, narrated + captions. (short-captioned.mp4 stays silent — post that
-  // variant with a trending sound instead whenever preferred.)
+  // override — export-video.mjs's hardcoded default ('Share it. whatDstuff')
+  // is corrupted placeholder text; see the flag raised alongside this export.
+  endCard: 'Share it.\nFollow for more.',
+
+  // 9:16, narrated + verbatim caption rail (--captions burns title/end card too).
+  // No per-shot `caption` fields — the rail is generated from the actual
+  // narration via ElevenLabs word timing, not hand-written summaries.
   short: {
     shots: [
       {
+        // hook (0-3s)
         step: 0,
         seconds: 4,
-        caption: 'This watch has no battery',
-        narration: 'This watch has no battery. Nothing electronic at all. So what keeps it ticking?',
+        narration: 'There’s no battery in this watch. No electricity, anywhere inside it.',
       },
       {
+        // straight to the question — no extra restating, one beat
+        step: 0,
+        seconds: 3,
+        narration: 'So what’s actually keeping it ticking?',
+      },
+      {
+        // reveal — the "130 parts, one spring" fact lands HERE, while we're
+        // actually looking at the machine, instead of stalling on the closed
+        // face first
         step: 1,
-        seconds: 5,
-        caption: 'Inside: a machine with ~130 parts',
-        narration: 'Under the dial: a machine of about a hundred and thirty parts, all powered by one coiled spring.',
+        seconds: 6,
+        narration: 'Lift the dial off, and here’s the machine — a hundred and thirty parts, all powered by one coiled spring.',
       },
       {
+        // mechanism beat 1: mainspring
         step: 2,
-        seconds: 5,
-        caption: 'The fuel tank is a coiled steel ribbon',
-        narration: 'Winding the crown coils this steel ribbon tighter. That’s the fuel tank — two days of energy.',
+        seconds: 6,
+        labels: ['Mainspring barrel'],
+        narration:
+          'Wind the crown, and you’re coiling a ribbon of spring steel tight inside this barrel — that’s the whole fuel tank, good for two days.',
       },
       {
+        // mechanism beat 2: escapement (BUT)
         step: 4,
         seconds: 6,
-        caption: 'These two rubies release ONE tooth per tick',
-        narration: 'These two rubies are the gatekeepers. They release exactly one tooth per beat. That’s the tick you hear.',
+        labels: ['Escape wheel', 'Pallet fork'],
+        narration: 'But left alone, that spring would unwind in seconds. Two ruby jewels lock the escape wheel, releasing just one tooth at a time.',
       },
       {
+        // mechanism beat 3: balance (THEREFORE) — reveals the heartbeat
         step: 5,
         seconds: 6,
-        caption: 'And this wheel beats 8 times a second — the heartbeat',
-        narration: 'And this wheel is the heartbeat — swinging eight times every second, telling the whole machine how fast time goes.',
+        labels: ['Balance wheel'],
+        narration:
+          'Therefore every tick is one tooth escaping — governed by a wheel that swings eight times a second, like a pendulum immune to gravity.',
       },
       {
+        // the stat, isolated on its own beat
+        step: 5,
+        seconds: 4,
+        narration: 'That’s four hundred thousand beats, every single day.',
+      },
+      {
+        // so-what
         step: 7,
         seconds: 5,
-        caption: 'A spring and a swinging wheel. That’s all time needs.',
-        narration: 'A spring and a swinging wheel. That’s all it takes to keep time on your wrist.',
+        narration: 'So wind it once, and that conversation between spring and wheel just keeps going.',
+      },
+      {
+        // button — closes the hook's own loop (no battery / no electricity)
+        step: 7,
+        seconds: 4,
+        narration: 'No battery. No electricity. Just a steel heartbeat.',
       },
     ],
   },

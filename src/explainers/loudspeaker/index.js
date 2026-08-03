@@ -58,7 +58,7 @@ export default defineExplainer({
     {
       id: 'motor',
       heading: 'Magnet vs. coil',
-      body: 'The coil sits in a narrow gap where the permanent magnet packs a strong, steady field. The coil’s flipping field is pulled and pushed against it — like poles repel, opposite poles attract — so the coil is driven straight up out of the gap, then straight back in. The magnet is heavy and fixed; the featherweight coil is what actually moves.',
+      body: 'The coil sits in a narrow gap where the permanent magnet packs a strong, steady field. Any wire carrying current through a magnetic field feels a force — current one way drives the coil straight up out of the gap, current the other way drives it straight back in. The magnet is heavy and fixed; the featherweight coil is what actually moves.',
       camera: { position: [3.0, 1.6, 1.7], target: [0, 1.35, -0.2] },
       onEnter: ({ handles }) => {
         handles.setCut(true);

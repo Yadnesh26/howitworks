@@ -8,7 +8,7 @@ import { buildAirConditioner } from './model.js';
 // the wrap is invisible. The camera provides each step's focus.
 // (handles.phases still exposes the chain's segment fractions — kept for a
 // future P-h diagram overlay.)
-function cycleRun({ hotAir = 0, coldAir = 0, duration = 5000 }) {
+function cycleRun({ hotAir = 0, coldAir = 0, duration = 10000 }) {
   return ({ tl, handles }) => {
     const s = { t: 0 };
     tl.add(s, {
@@ -41,7 +41,7 @@ export default defineExplainer({
       hint: 'Drag to orbit · scroll to follow the refrigerant.',
       camera: { position: [3.4, 2.2, 5.6], target: [0.3, 1.6, -0.3] },
       onEnter: ({ handles }) => handles.setLabels(true),
-      timeline: cycleRun({ duration: 8000 }),
+      timeline: cycleRun({ duration: 16000 }),
     },
     {
       id: 'compressor',
@@ -65,7 +65,7 @@ export default defineExplainer({
       body: 'The warm liquid now fights its way through metres of hair-thin copper wound into a tight coil. Squeezing through costs it nearly all its pressure — and a fluid that suddenly loses pressure gets dramatically cold. Part of it flashes to vapour, chilling the whole stream far below room temperature before it heads up the wall.',
       camera: { position: [3.0, 0.9, 1.5], target: [1.5, 0.6, -0.55] },
       onEnter: ({ handles }) => handles.setLabels(false),
-      timeline: cycleRun({ hotAir: 1, duration: 6000 }),
+      timeline: cycleRun({ hotAir: 1, duration: 12000 }),
     },
     {
       id: 'evaporator',
@@ -83,7 +83,7 @@ export default defineExplainer({
       camera: { position: [4.2, 2.6, 5.8], target: [0.3, 1.6, -0.3] },
       freeOrbit: true,
       onEnter: ({ handles }) => handles.setLabels(false),
-      timeline: cycleRun({ hotAir: 1, coldAir: 1, duration: 4600 }),
+      timeline: cycleRun({ hotAir: 1, coldAir: 1, duration: 9200 }),
     },
   ],
 });

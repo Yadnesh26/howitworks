@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { materials, rod, box } from '../../framework/parts.js';
 import { beveledBox, gear } from '../../framework/geometry.js';
 import { callout } from '../../framework/labels.js';
+import { smudgeMap } from '../../framework/textures.js';
 
 // A complete wristwatch, standing on its closed bracelet loop like a product
 // shot. The scene has three layers:
@@ -135,10 +136,26 @@ export function buildMechanicalWatch({ scene }) {
   const ruby = materials.glow(0xc41430, 0.22);
   ruby.transparent = true;
   ruby.opacity = 0.92;
+  // the mainplate is a large FLAT disc filling the whole background behind
+  // the gear train, visible through every gap between wheels — a flat metal
+  // surface at 0.6 (effective ~0.3 after the castMap roughness texture
+  // multiplies it) throws a single coherent mirror-bright reflection of the
+  // key light across a wide area (isolated via material-visibility toggling
+  // on the escapement macro step: hiding it alone dropped clipped px from
+  // 254 to 6). A curved part spreads a hotspot as you scan across it; a flat
+  // one doesn't, so it needs to run matter than curved parts at this scale.
   const plateMetal = materials.aluminum(0x9098a2);
-  plateMetal.roughness = 0.6;
-  // roughnessMap texels multiply these (~0.5): keep them high or the case
-  // band becomes a softbox mirror with a blinding glare streak
+  plateMetal.roughness = 0.95;
+  // a FLAT disc reflects coherently across its whole surface — unlike a
+  // curved part, no amount of scanning across it disperses the hotspot, so
+  // the cast-texture bump needs MORE perturbation than default (not less) to
+  // break that coherence into scattered glints instead of one mirror patch.
+  plateMetal.normalScale.set(0.6, 0.6);
+  // anisoSteel tried here [rung 2a, reverted]: the case band fills most of
+  // the frame at the escapement/balance macro steps, exactly the "large
+  // frame-filling geometry at macro distance" failure mode documented for
+  // wireless-charging's coils — blew clipped px to 2171/3594 (limit 150).
+  // Back to plain brushedSteel; see polish-explainer skill's anisotropy note.
   const caseSteel = materials.brushedSteel(0xc9ced6);
   caseSteel.roughness = 0.65;
   const linkSteel = materials.brushedSteel(0xbfc5cd);
@@ -322,13 +339,16 @@ export function buildMechanicalWatch({ scene }) {
     movement.add(c);
     callouts.push(c);
   };
-  addC('Mainspring barrel', L.barrel.x, L.barrel.y + 0.1, 150, 60);
+  // barrel/pallet fork/balance sit on the movement's left, where the anatomy
+  // step's panel lives — their leaders point right (away from the panel)
+  // rather than outward from the cluster, or the label-visibility gate fails
+  addC('Mainspring barrel', L.barrel.x, L.barrel.y + 0.1, 30, 60);
   addC('Centre wheel', L.centre.x, L.centre.y, 60, 52);
   addC('Third wheel', L.third.x + 0.1, L.third.y, 20, 50);
   addC('Fourth wheel', L.fourth.x + 0.05, L.fourth.y - 0.1, -35, 54);
   addC('Escape wheel', L.escape.x, L.escape.y - 0.1, -110, 52);
-  addC('Pallet fork', L.palletPivot.x - 0.05, L.palletPivot.y + 0.15, 160, 54);
-  addC('Balance wheel', L.balance.x, L.balance.y - 0.15, -150, 56);
+  addC('Pallet fork', L.palletPivot.x - 0.05, L.palletPivot.y + 0.15, 20, 54);
+  addC('Balance wheel', L.balance.x, L.balance.y - 0.15, -30, 56);
   addC('Crown', 2.0, 0.1, 0, 46);
 
   // ==========================================================================
@@ -424,11 +444,30 @@ export function buildMechanicalWatch({ scene }) {
   );
   centerCap.position.z = 0.25;
   dress.add(centerCap);
-  // domed crystal
+  // domed crystal — real transmissive glass [rung 2b, CANDIDATE]: thin-shell
+  // transmission (thickness 0.08, ior 1.52) instead of the fake opacity
+  // preset, plus a faint iridescent AR-coating sheen real watch crystals have.
   const crystalGeo = new THREE.SphereGeometry(0.8, 48, 24, 0, TAU, 0, Math.PI / 2);
   crystalGeo.rotateX(Math.PI / 2);
   crystalGeo.scale(1, 1, 0.35);
-  const crystal = new THREE.Mesh(crystalGeo, materials.glass(0xdfeaff, 0.1));
+  const crystalMat = new THREE.MeshPhysicalMaterial({
+    color: 0xdfeaff,
+    metalness: 0,
+    roughness: 0.04,
+    transmission: 1,
+    thickness: 0.08,
+    ior: 1.52,
+    transparent: false,
+    iridescence: 0.15,
+    iridescenceIOR: 1.3,
+    iridescenceThicknessRange: [100, 400],
+    // fingerprint smudges [rung 3]: live in the COAT, not the base, so the
+    // clean glass stays clean and only the touched patches haze faintly
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.25,
+    clearcoatRoughnessMap: smudgeMap(),
+  });
+  const crystal = new THREE.Mesh(crystalGeo, crystalMat);
   crystal.position.z = 0.26;
   dress.add(crystal);
 

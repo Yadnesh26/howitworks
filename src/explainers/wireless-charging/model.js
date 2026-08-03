@@ -97,6 +97,19 @@ export function buildCharger({ scene }) {
   const batteryFill = materials.glow(0x46e05a, 0.9);
   const rectMat = materials.darkMetal(0x353b44); // light enough to read as a distinct chip on the dark board
   const pinMat = materials.chrome(0xcfd4da);
+  // smartphone cosmetic hardware — punch-hole cam, buttons, port, back camera
+  const phoneTrim = materials.chrome(0xd7dce2);
+  const lensGlass = new THREE.MeshPhysicalMaterial({
+    color: 0x04070a,
+    metalness: 0.2,
+    roughness: 0.1,
+    clearcoat: 1,
+    clearcoatRoughness: 0.1,
+  });
+  const camIslandMat = materials.paintedMetal(0x16181c);
+  camIslandMat.clearcoat = 0.6;
+  camIslandMat.clearcoatRoughness = 0.2;
+  const portMat = materials.darkMetal(0x121417);
   const fieldTubeMat = new THREE.MeshStandardMaterial({
     color: FIELDCOL,
     emissive: FIELDCOL,
@@ -116,6 +129,12 @@ export function buildCharger({ scene }) {
 
   const revealDim = []; // shells that ghost on reveal
   const internals = []; // coils/ferrite/battery/rectifier — shown only revealed
+  // small chrome/glass cosmetic hardware (buttons, camera rings, port) — reveal
+  // is only ever a hard 0/1 cut here, never scrubbed, so these just hide
+  // outright rather than ghost: at ~10% opacity their specular highlights
+  // still bloom into a distracting cluster of bright rings over the
+  // near-invisible shell
+  const cosmetic = [];
 
   const rememberGhostOrig = (mat) => {
     if (!mat.userData.ghostOrig) {
@@ -158,6 +177,73 @@ export function buildCharger({ scene }) {
   chargeRing.position.set(0, PHONE_Y + PHONE_T / 2 + 0.004, 0);
   sceneGroup.add(chargeRing);
   revealDim.push(chargeRing);
+
+  // ---- cosmetic hardware: what makes it read as a PHONE, not a slab --------
+  // front punch-hole camera, ringed in metal trim, near one screen edge
+  const camX = PHONE_X + PHONE_L / 2 - 0.24;
+  const punchRing = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.007, 8, 24), phoneTrim);
+  punchRing.rotation.x = Math.PI / 2;
+  punchRing.position.set(camX, PHONE_Y + PHONE_T / 2 + 0.005, 0);
+  sceneGroup.add(punchRing);
+  cosmetic.push(punchRing);
+  const punchHole = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.01, 24), lensGlass);
+  punchHole.position.set(camX, PHONE_Y + PHONE_T / 2 + 0.008, 0);
+  sceneGroup.add(punchHole);
+  cosmetic.push(punchHole);
+
+  // side hardware: volume rocker + power button on the edge the camera sees
+  const volBtn = beveledBox(0.42, 0.045, 0.045, phoneTrim, 0.018);
+  volBtn.position.set(PHONE_X - 0.35, PHONE_Y, PHONE_W / 2 + 0.018);
+  sceneGroup.add(volBtn);
+  cosmetic.push(volBtn);
+  const pwrBtn = beveledBox(0.22, 0.045, 0.045, phoneTrim, 0.018);
+  pwrBtn.position.set(PHONE_X + 0.45, PHONE_Y, PHONE_W / 2 + 0.018);
+  sceneGroup.add(pwrBtn);
+  cosmetic.push(pwrBtn);
+
+  // bottom short edge: USB-C port + speaker grille
+  const edgeX = PHONE_X - PHONE_L / 2;
+  const port = beveledBox(0.03, 0.03, 0.16, portMat, 0.012);
+  port.position.set(edgeX - 0.01, PHONE_Y, 0);
+  sceneGroup.add(port);
+  cosmetic.push(port);
+  for (let i = 0; i < 5; i++) {
+    const z = 0.18 + i * 0.09;
+    const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.02, 10), portMat);
+    hole.rotation.z = Math.PI / 2;
+    hole.position.set(edgeX - 0.006, PHONE_Y - 0.02, z);
+    sceneGroup.add(hole);
+    cosmetic.push(hole);
+  }
+
+  // back camera module: raised island near the corner that overhangs the pad
+  // (the one patch of underside the free-orbit finale actually shows) — two
+  // lenses + a flash, the single most recognizable "this is a phone" tell
+  const camIslandX = PHONE_X + PHONE_L / 2 - 0.3;
+  const camIslandZ = -PHONE_W / 2 + 0.35;
+  const backY = PHONE_Y - PHONE_T / 2;
+  const island = beveledBox(0.34, 0.05, 0.34, camIslandMat, 0.06);
+  island.position.set(camIslandX, backY - 0.02, camIslandZ);
+  sceneGroup.add(island);
+  cosmetic.push(island);
+  for (const lx of [camIslandX - 0.08, camIslandX + 0.08]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.011, 8, 24), phoneTrim);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(lx, backY - 0.045, camIslandZ);
+    sceneGroup.add(ring);
+    cosmetic.push(ring);
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.014, 20), lensGlass);
+    lens.position.set(lx, backY - 0.048, camIslandZ);
+    sceneGroup.add(lens);
+    cosmetic.push(lens);
+  }
+  const flash = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.022, 0.022, 0.01, 12),
+    materials.glow(0xfff2d6, 0.15),
+  );
+  flash.position.set(camIslandX, backY - 0.045, camIslandZ - 0.13);
+  sceneGroup.add(flash);
+  cosmetic.push(flash);
 
   // ============================================================================
   //  FLAT SPIRAL COILS — transmitter (pad) + receiver (phone)
@@ -361,6 +447,7 @@ export function buildCharger({ scene }) {
     // the charge ring belongs to the sealed product shot — fade it out entirely
     chargeRing.material.opacity = (1 - r) * 0.9;
     for (const o of internals) o.visible = revealed;
+    for (const o of cosmetic) o.visible = !revealed;
     fieldGroup.visible = revealed && fieldOn;
   }
 
