@@ -696,18 +696,28 @@ if (inputs.length || hasMusic) {
       : `anullsrc=r=48000:cl=stereo,atrim=0:${filmDuration.toFixed(2)}[voice];`;
     // asplit: one copy of the voice is the sidechain key, the other goes to the
     // final mix. Without the split the key consumes the voice and it vanishes.
+    // apad ON THE SIDECHAIN KEY. sidechaincompress ends as soon as EITHER of
+    // its inputs ends, and the key is the voice — which stops at the last
+    // spoken word. Without this pad the ducked music is truncated there, so
+    // the deliberate tail (the END CARD's window) plays in total silence, which
+    // is precisely the "reads as a mistake" failure the bed exists to prevent.
+    // Padding the key with silence keeps the compressor running to the end AND
+    // leaves the music un-ducked over the card, so it swells for the outro.
     mix =
       `${chains.join(';')}${chains.length ? ';' : ''}${voiceBus}` +
       `[voice]asplit=2[vkey][vout];` +
+      `[vkey]apad=whole_dur=${filmDuration.toFixed(2)}[vkeyp];` +
       `[${musicIn}:a]${norm},volume=${film.musicGain ?? 0.18},atrim=0:${filmDuration.toFixed(2)}[mraw];` +
-      `[mraw][vkey]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=600[mduck];` +
+      `[mraw][vkeyp]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=600[mduck];` +
       `[vout][mduck]${sfxIdx.map((i) => `[a${i}]`).join('')}amix=inputs=${2 + sfxIdx.length}:normalize=0[mixed];` +
-      `[mixed]loudnorm=I=-14:TP=-1.5:LRA=11[out]`;
+      `[mixed]apad=whole_dur=${filmDuration.toFixed(2)},loudnorm=I=-14:TP=-1.5:LRA=11[out]`;
   } else {
+    // apad for the same reason as the music path: the tail past the last word
+    // is deliberate (the end card's window) and must carry audio, not stop.
     mix =
       `${chains.join(';')};${inputs.map((_, i) => `[a${i}]`).join('')}` +
       `amix=inputs=${inputs.length}:normalize=0[mixed];` +
-      `[mixed]loudnorm=I=-14:TP=-1.5:LRA=11[out]`;
+      `[mixed]apad=whole_dur=${filmDuration.toFixed(2)},loudnorm=I=-14:TP=-1.5:LRA=11[out]`;
   }
 
   run(
