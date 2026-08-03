@@ -2,7 +2,7 @@ export default {
   id: 'water-purifier',
   title: 'How a Reverse Osmosis Purifier Works',
   summary:
-    'A high-pressure pump, a microscopic membrane, and a lot of rejected water — how a reverse osmosis system strips dissolved solids and contaminants down to the molecular level.',
-  accent: '#54c8e8',
+    'Sediment and carbon strip the big stuff, a booster pump pushes feed water past 60–80 psi, and a spiral-wound membrane forces pure water through pores 0.0001 micron wide — rejecting up to 99% of dissolved solids into a waste stream.',
+  accent: '#2fb8c4',
   categories: ['home'],
 };

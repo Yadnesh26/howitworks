@@ -1,9 +1,9 @@
 // Editorial layer for video export (scripts/export-video.mjs).
 // One flowing voiceover per format (single-take TTS + audio-master pacing);
-// captions OFF by default (hook/caption fields kept for an optional --captions
-// cut). 8-beat arc: pattern interrupt -> hook -> spoken question -> reveal ->
-// step-by-step (suck/squeeze/bang/blow, connected) -> isolated insight (only
-// one stroke makes power) -> real-world -> callback.
+// captions are the word-synced verbatim rail (--captions), not per-shot
+// caption strings. 8-beat arc: pattern interrupt -> hook -> spoken question ->
+// reveal -> step-by-step (suck/squeeze/bang/blow, connected) -> isolated
+// insight (only one stroke makes power) -> real-world -> callback.
 //
 // steps: 0 anatomy (solid) · 1 intake · 2 compression · 3 power · 4 exhaust · 5 run
 export default {
@@ -16,7 +16,6 @@ export default {
         // 1. pattern interrupt
         step: 0,
         dolly: 1.85,
-        caption: 'It runs on controlled explosions',
         narration:
           'Your car doesn’t really run on fuel. It runs on thousands of tiny, controlled explosions, every single minute.',
       },
@@ -24,7 +23,6 @@ export default {
         // 2. hook + 3. question
         step: 0,
         dolly: 1.85,
-        caption: 'One piston. Four simple moves.',
         narration:
           'And it pulls that off with just one piston, sliding up and down, in four simple strokes. So how does a puff of fuel become motion?',
       },
@@ -32,7 +30,6 @@ export default {
         // 5. suck
         step: 1,
         dolly: 1.4,
-        caption: 'Intake — it inhales fuel and air',
         narration:
           'First, it inhales. The piston drops like a syringe, a valve swings open, and a fine mist of fuel and air rushes in.',
       },
@@ -40,7 +37,6 @@ export default {
         // squeeze
         step: 2,
         dolly: 1.4,
-        caption: 'Compression — squeezed tight',
         narration:
           'Then both valves slam shut, and the piston squeezes that mist into a tiny, tense space. The tighter you pack it, the harder it hits back.',
       },
@@ -48,7 +44,6 @@ export default {
         // bang + insight seed
         step: 3,
         dolly: 1.4,
-        caption: 'Power — the spark, the bang',
         narration:
           'Now, the spark. The mixture detonates and blasts the piston down. This is the only one of the four strokes that actually makes power.',
       },
@@ -56,7 +51,6 @@ export default {
         // blow
         step: 4,
         dolly: 1.4,
-        caption: 'Exhaust — the burnt gas is pushed out',
         narration:
           'The piston rises again and shoves the burnt gas out the back, leaving the cylinder empty, ready to do it all over again.',
       },
@@ -64,7 +58,6 @@ export default {
         // 6. isolated insight + 8. callback
         step: 5,
         dolly: 1.85,
-        caption: 'Only 1 of 4 strokes makes power',
         narration:
           'Suck, squeeze, bang, blow. But only one stroke makes power, so a heavy flywheel coasts through the other three, turning a rhythm of explosions into smooth, endless spin.',
       },

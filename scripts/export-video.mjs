@@ -67,7 +67,7 @@ if (existsSync(videoJsPath)) {
 // override with `titleCard` when the derived form is wrong.
 const compactTitle = (t) =>
   t
-    .replace(/^how\s+(a|an|the)\s+/i, '')
+    .replace(/^how\s+(?:(?:a|an|the)\s+)?/i, '')
     .replace(/\s+works?[.!]?$/i, '')
     .trim();
 let metaTitle = null;
@@ -78,9 +78,14 @@ if (existsSync(metaPath)) {
 const displayTitle =
   editorial?.titleCard ?? (metaTitle ? compactTitle(metaTitle).toUpperCase() : null);
 // End card: the closing share/funnel beat. Overridable per explainer; `\n`
-// splits lines. Keep it short — it competes with nothing but it is on screen
-// for ~3s and long CTAs do not get read.
-const endCardText = editorial?.endCard ?? 'Share it with a curious mind\nwhatDstuff';
+// splits lines IF you want more than one — but the EndCard style shares its
+// MarginV/Alignment with Cap (the rail captions) on purpose, so a 1-line
+// card lands at the EXACT same position captions have held all video. A
+// 2-line card anchored at that same point pushes its top line upward,
+// which reads as the captions randomly "jumping" position in the last few
+// seconds — confirmed 2026-07-28 by comparing rendered frames. Default is
+// single-line for this reason; only go multi-line with a deliberate reason.
+const endCardText = editorial?.endCard ?? 'Share it.';
 
 // --- launch page with virtual clock --------------------------------------
 const framesDir = join(outRoot, `${format}-frames`);
@@ -262,6 +267,29 @@ for (const [si, shot] of shots.entries()) {
   await setDolly(shot.dolly ?? baseDolly);
   await page.evaluate((n) => window.__hiw.activate(n), shot.step);
 
+  // Per-shot label targeting (OPT-IN via `labels: [...]` in video.js): show
+  // only the named callouts while THIS shot's narration is on screen, so a
+  // label appears while the narrator is actually talking about that part
+  // instead of the step's default all-or-nothing set. `activate()` is a
+  // no-op when consecutive shots share the same step (see player.js), so
+  // this must run every shot regardless of whether onEnter re-fired. Sets
+  // the CSS2DObject's `.visible` directly (not a DOM style) so it survives
+  // every subsequent composer.render() call this shot — CSS2DRenderer
+  // re-derives element display from `.visible` every frame. Shots that omit
+  // `labels` are untouched (whatever's currently showing carries over),
+  // preserving old video.js files with no opinion on this.
+  if (shot.labels !== undefined) {
+    await page.evaluate((wanted) => {
+      const stage = window.__hiw.stage;
+      const want = new Set(wanted);
+      stage.scene.traverse((o) => {
+        if (!o.isCSS2DObject || !o.element) return;
+        const tx = o.element.querySelector('.callout-text');
+        o.visible = want.has(tx ? tx.textContent : '');
+      });
+    }, shot.labels);
+  }
+
   // One continuous span per shot. The fly-to (triggered by activate above)
   // plays during the FIRST ~FLY_SECONDS of it — captured as part of the shot,
   // never added on top — so lines butt up against each other with no silent
@@ -369,7 +397,16 @@ if (wantCaptions && existsSync(wordsPath)) {
   // group verbatim words into readable, voice-synced phrase groups (1-4 words
   // visible at once for shorts — the trending word-by-word rail shape)
   const maxWords = short ? 4 : 7;
-  const maxChars = short ? 26 : 44;
+  // 26 was a guess and never actually fit: measured via headless Chromium
+  // canvas.measureText at the real render font (84px Arial Black, 960px
+  // available width after margins), a 26-char short-form group averages
+  // ~1150-1250px wide — 30% wider than the frame allows. That overflow (not
+  // wrapping) is what caused captions to run edge-to-edge / look
+  // inconsistently positioned. 18 was verified empirically (see
+  // scripts/find-safe-caption-cap.tmp.mjs) to keep every group under 900px,
+  // a real safety margin below the 960px budget. Long-form's 44 at 58px
+  // measured fine (max ~1406px vs 1800px available) — left unchanged.
+  const maxChars = short ? 18 : 44;
   const groups = [];
   let grp = [];
   const flush = () => {
@@ -378,11 +415,18 @@ if (wantCaptions && existsSync(wordsPath)) {
     grp = [];
   };
   for (const w of words) {
+    // Check BEFORE adding: the old check ran after pushing, so a group could
+    // overshoot maxChars by up to one whole word — long enough at 84px Arial
+    // Black to exceed the frame width and trigger libass's WrapStyle auto-wrap,
+    // which silently turns one "line" into two and, since captions are
+    // bottom-anchored, shoves the whole block upward. Breaking BEFORE the
+    // word that would cross the cap guarantees every group actually fits.
+    const prospectiveLen = grp.reduce((n, x) => n + x.t.length + 1, -1) + w.t.length + 1;
+    if (grp.length && (grp.length >= maxWords || prospectiveLen > maxChars)) flush();
     grp.push(w);
-    const len = grp.reduce((n, x) => n + x.t.length + 1, -1);
     const hard = /[.?!]["')\]]?$/.test(w.t); // sentence end -> always break
     const soft = /[,;:—]$/.test(w.t) && grp.length >= 2; // clause end
-    if (hard || soft || grp.length >= maxWords || len >= maxChars) flush();
+    if (hard || soft) flush();
   }
   flush();
   // audio starts at audioDelay. Each word in a group gets its own cue so the
@@ -395,7 +439,18 @@ if (wantCaptions && existsSync(wordsPath)) {
     g.forEach((w, i) => {
       const start = w.s + audioDelay;
       const nextWordStart = i + 1 < g.length ? g[i + 1].s + audioDelay : groupEnd;
-      const end = Math.max(Math.min(nextWordStart, groupEnd), start + 0.15);
+      // NEVER let end exceed the next cue's start: a `start + 0.15` minimum-
+      // duration floor here can push end past nextWordStart/groupEnd when
+      // words are spoken faster than 150ms apart, creating a genuine time
+      // overlap between two consecutive same-style Dialogue lines. libass
+      // then applies its collision-avoidance stacking (for lines it thinks
+      // are simultaneously visible) and shoves one upward by roughly a line
+      // height — this is the actual cause of captions appearing to jump
+      // position throughout the video (confirmed 2026-07-28 by finding 22
+      // genuine start/end overlaps in the generated .ass and reproducing the
+      // exact ~100px shift). A very fast word's highlight flashing under
+      // 150ms is a far smaller cost than that.
+      const end = Math.min(nextWordStart, groupEnd);
       const text = g
         .map((x, j) => (j === i ? `{\\c${HILITE}}${esc(x.t)}{\\r}` : esc(x.t)))
         .join(' ');
@@ -486,7 +541,7 @@ if (wantCaptions && (cues.length || hookLine || titleText || endCardStart != nul
 ScriptType: v4.00+
 PlayResX: ${viewport.width}
 PlayResY: ${viewport.height}
-WrapStyle: 0
+WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding

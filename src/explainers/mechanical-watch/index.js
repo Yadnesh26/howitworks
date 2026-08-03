@@ -31,6 +31,10 @@ const view = (dress, labels) => ({ handles }) => {
 
 export default defineExplainer({
   ...meta,
+  // DOF [rung 4]: only the escapement/balance steps get a dofAperture below —
+  // camera-to-target distance there is ~1.5-1.8 (true macro); every other
+  // step is medium/wide and stays at the sharp default.
+  stageOptions: { dof: true },
 
   buildScene({ scene }) {
     return buildMechanicalWatch({ scene });
@@ -51,7 +55,7 @@ export default defineExplainer({
       heading: '2 · Inside the case',
       body: 'Lift off the dial and hands, and here is the machine itself. It\'s a chain of parts, each handing power to the next: a wound mainspring in the barrel pushes a train of gears; the last gear, the escape wheel, is held in check by the pallet fork; and the fork is governed by the swinging balance wheel. Follow the chain with us — power first, timekeeping last.',
       hint: 'Drag to orbit the open movement.',
-      camera: { position: [0.15, 1.6, 3.1], target: [0, 1.45, 0] },
+      camera: { position: [0.15, 1.65, 3.75], target: [0, 1.45, 0] },
       onEnter: view(false, true),
       timeline: run(12000),
     },
@@ -76,6 +80,7 @@ export default defineExplainer({
       heading: '5 · The escapement',
       body: 'If nothing stopped it, the spring would unwind in seconds. The pallet fork is the gatekeeper: its two ruby jewels catch the escape wheel\'s teeth, holding the whole train frozen. Only when the balance nudges the fork does one tooth slip past — tick — before the other jewel locks the very next tooth. The train advances one tooth at a time, and every unlock is a beat.',
       camera: { position: [-0.4, 1.2, 1.45], target: [-0.07, 1.09, 0] },
+      dofAperture: 0.00012,
       onEnter: view(false, false),
       timeline: run(7000),
     },
@@ -84,6 +89,7 @@ export default defineExplainer({
       heading: '6 · The balance wheel',
       body: 'This is the heartbeat. The balance wheel swings back and forth on a fine spiral hairspring — wind it one way, the spring pulls it back, exactly like a pendulum but immune to gravity. It beats at a fixed rate, typically eight times a second. Each swing, its jewel kicks the pallet fork to release one tooth, and in return the escapement gives the balance a tiny push to keep it swinging. The balance decides the speed; everything else obeys.',
       camera: { position: [-1.05, 1.45, 1.7], target: [-0.41, 1.25, 0.05] },
+      dofAperture: 0.00012,
       onEnter: view(false, false),
       timeline: run(7000),
     },

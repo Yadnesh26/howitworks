@@ -9,15 +9,42 @@ Turns `src/explainers/<id>/` into publishable MP4s. The render is free and
 repeatable — **the editorial layer (hook, narration) is where views
 are won or lost.** Spend your effort there.
 
+## Step 0 — before touching the pipeline (every invocation)
+
+1. **Ask which format(s).** Never assume. Ask the user — short, long, or
+   both — before generating narration or rendering. "Export content for X"
+   is not "export both by default"; get an explicit answer (AskUserQuestion
+   is fine for this).
+2. **Check the editorial is current, not just present.** A `video.js` that
+   already exists is not the same as one that reflects the latest
+   conventions. Before reusing it, check it against the live checklist in
+   `video-scripting`'s SKILL.md (hook = shot 1's first spoken sentence, ABT
+   connective tissue not "and then," one planted loop closed in the button,
+   the stat isolated on its own shot, no per-shot `caption` one-liners now
+   that the verbatim rail exists) and against this file's current shape
+   (single-take narration, `seconds` as a floor, the `hook` field is the
+   spoken line only — not the same thing as the branded title card).
+   If it predates those conventions — check `git log -- src/explainers/<id>/
+   video.js` against the date the skills last changed, or just read it and
+   judge — rewrite it through `video-scripting` first. Do not render a stale
+   script just because a file happens to be sitting there.
+3. **Ask about captions too, and name the real stakes.** `--captions` now
+   also gates the title card and end card (see "Captions" below) — declining
+   captions means fully clean, unbranded footage, not just no on-screen
+   text. Say that when you ask, don't just ask "captions y/n" in isolation.
+
 ## Pipeline overview
 
 1. `src/explainers/<id>/video.js` — editorial layer (you write this)
 2. `node scripts/make-narration.mjs <id> --format short|long --voice <id>` —
    ElevenLabs TTS (needs `ELEVENLABS_API_KEY` in `.env`; the script loads it
    itself). Falls back to free Edge TTS if the key is unset/fails.
-3. `node scripts/export-video.mjs <id> --format short|long --captions` —
-   deterministic frame render + ffmpeg. **`--captions` is opt-in and you almost
-   always want it** — it is also what burns the title card and end card.
+3. `node scripts/export-video.mjs <id> --format short|long [--captions]` —
+   deterministic frame render + ffmpeg. `--captions` is the ONE flag that also
+   gates the title card and end card (see "Captions" below for whether to
+   pass it) — this is a manual, ask-first workflow, unlike the fully
+   unattended `explainer-to-video` pipeline, which always passes `--captions`
+   because no one's there to ask.
 4. Review the output frames, fix, re-render
 5. `node scripts/make-thumbnails.mjs <id>` — 16:9 cover plates (long-form)
 6. `node scripts/make-postkit.mjs <id>` — assembles `renders/<id>/POST.md`
@@ -76,8 +103,13 @@ one-fact-per-shot lines are what made earlier exports feel disconnected.
 7. *Real-world connection* — why it matters / a everyday consequence.
 8. *Powerful ending* — callback to beat 1, short and quotable.
 
-- **hook** (shorts, first 3s, top of frame): beat 1, under 12 words, `\n` for
-  line breaks.
+- **hook**: beat 1, under 12 words, `\n` for line breaks. This is NOT the
+  branded title card (that's the explainer's name from `meta.js`, burned
+  top-center for 5s — see Step 3). The hook is purely the spoken opening
+  line; the verbatim caption rail (see below) is what surfaces it on screen,
+  word by word, as it's said. The `hook` field only burns as its own
+  standalone card on the legacy no-`words.json` fallback path; keep it in
+  sync with shot 1's opening line regardless.
 - **short.shots**: ~70s (scale to module complexity — simpler ~50s, complex
   ~90s). **First shot shows the ENTIRE model** (establish, then zoom).
   Wide/horizontal models need per-shot `dolly` (2.0+) to fit portrait. Shorts
@@ -86,9 +118,38 @@ one-fact-per-shot lines are what made earlier exports feel disconnected.
   is spoken prose — contractions, short sentences, second person, ~2.3 words/
   sec. Never paste the step body copy; it's written for reading, not listening.
 - Optional per shot: `dolly` (portrait pull-back, default 1.35 — raise if the
-  subject crops), `sfx: [{ file, at }]` referencing `assets/sfx/<file>.mp3`.
+  subject crops), `sfx: [{ file, at }]` referencing `assets/sfx/<file>.mp3`,
+  `labels: ['Exact Callout Text', ...]` — see "Label targeting" below.
 - Consecutive shots may reuse the same `step` (e.g. beats 1–3 all on the hero)
   — the camera simply holds while the voiceover develops.
+
+## Label targeting — show a callout only while it's being discussed
+
+By default the in-scene 3D part-labels (CSS2D callouts) follow whatever each
+player STEP's `onEnter` sets (`handles.setLabels(true/false)` — usually all
+labels on the overview step, all off elsewhere). For video, you can instead
+show only the label(s) relevant to what's being said RIGHT NOW: add
+`labels: ['Exact Callout Text', ...]` to a shot in `video.js`. `export-video.mjs`
+matches that text against each callout's rendered text and shows only the
+named ones for that shot's duration, hiding the rest — shot-level precision
+(one topic per shot, same as the narration is already chunked), not
+word-level. Rationale for shot-level over word-level: matching label text
+against spoken words via `words.json` timing is fragile (a word like "coil"
+can appear elsewhere and trigger the wrong label) and flashing a label on for
+under a second reads as a glitch, not a deliberate cue — confirmed as the
+right call with the user 2026-07-29.
+
+- The text must match EXACTLY what the callout renders (copy it from
+  `model.js`'s `addCallout('Exact Text', ...)` calls, not the heading/body).
+- Shots that omit `labels` are untouched — whatever's currently visible
+  carries over (from the step's `onEnter`, or from a previous shot's
+  override on the same step, since `activate()` is a no-op when consecutive
+  shots share a step). Old `video.js` files with no `labels` fields keep
+  behaving exactly as before.
+- This is export-only — it never touches the live interactive site.
+- Sanity-check the exact list against the explainer's `model.js` before
+  rendering (`grep addCallout`); a typo'd name just means that label never
+  shows for that shot, no error is raised.
 
 ## Step 2 — narration (both formats, single take)
 
@@ -105,11 +166,49 @@ neutral default is used. If the key is missing/invalid it falls back to free
 Edge TTS as per-shot files, and the export still works (just less seamless).
 Re-run this whenever the script changes, then re-run the export to re-mix.
 
-## Step 3 — render
+**Pause trimming is ON by default.** ElevenLabs' own silence at periods and
+commas is a delivery trait of the model, not something the text can fully
+control — `make-narration.mjs` now shortens any gap over `--max-pause`
+(default 0.3s) down to `--target-pause` (default 0.15s) by trimming the
+actual audio waveform (ffmpeg atrim+concat) and shifting every later word/
+shot timestamp to match, so captions and shot pacing stay in sync with the
+shortened take. This is a different fix from the comma/dash-density lesson
+above (writing style) — this one targets pause DURATION directly, at the
+audio level, regardless of how the script is punctuated. Disable per-run
+with `--no-trim-pauses` if a take ever sounds too clipped/rushed.
+
+## Captions — off by default, ask if it's not obvious
+
+The standing default is narration-only, clean footage — don't burn captions
+unless the user asked for them (or the platform/context makes it obvious,
+e.g. "make me a TikTok"). **This is now a bigger decision than just
+captions**: `--captions` is also the one flag that gates the title card and
+end card (see Step 3), because all three burn in the same libass pass to
+avoid a second re-encode. Skipping it means a fully clean loop with no
+branding at all, not just no on-screen text — say so when you ask, so the
+user is choosing the actual trade-off. When captions are wanted, pass
+`--captions`; follow the `captions-overlay` doctrine (rail-first, verbatim,
+embed scarce — see that skill for the full model):
 
 ```
 node scripts/export-video.mjs <id> --format short --fps 30 --captions
 node scripts/export-video.mjs <id> --format long  --fps 30 --captions
+```
+
+`export-video.mjs` prefers the VERBATIM RAIL: if `make-narration.mjs` wrote
+`renders/<id>/audio/<format>-words.json` (the ElevenLabs word-level
+alignment — it does whenever the ElevenLabs path was used, not the Edge TTS
+fallback), the burned captions are word-synced to the actual narration, with
+an active-word highlight, grouped into short lower-third phrases. No
+per-shot `caption` fields needed — don't add them to video.js, they're the
+legacy fallback path for when no words.json exists. This produces
+`<format>-captioned.mp4` in addition to the silent master and the final mix.
+
+## Step 3 — render
+
+```
+node scripts/export-video.mjs <id> --format short --fps 30 [--captions]
+node scripts/export-video.mjs <id> --format long  --fps 30 [--captions]
 ```
 
 Smoke-test new editorial at `--fps 10` first (renders ~3x faster) before
@@ -149,6 +248,9 @@ Check every frame for:
   frames if unsure — frozen loops have shipped before)
 - **Long-form audio**: narration must not overrun its shot — if a segment
   feels rushed, lengthen `seconds` or cut words
+- **If `--captions` was used**: legible at phone size, not covering the
+  subject, word-sync actually tracks the voice (spot-check a few frames
+  against the audio)
 
 Fix in video.js, re-render. Ship only what you would post.
 
@@ -165,3 +267,6 @@ Fix in video.js, re-render. Ship only what you would post.
   export's injected CSS.
 - Audio mix picks up `renders/<id>/audio/<format>-shot-NN.mp3` +
   `assets/sfx/*.mp3` cues; anything missing is skipped gracefully.
+- Captions burn via libass ASS subtitles with `fontsdir=C:/Windows/Fonts`;
+  ffmpeg runs with cwd = renders dir to dodge Windows path escaping. Burn
+  failure falls back to the uncaptioned master rather than failing the run.

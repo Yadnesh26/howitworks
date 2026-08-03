@@ -7,53 +7,57 @@
 // The scene is wide (pad + overhanging phone), so portrait shots carry a
 // per-shot `dolly` pull-back to keep the whole charger in frame.
 export default {
-  hook: 'No plug. Nothing even touches.\nSo how does the power get in?',
+  // Hook is the SPOKEN opening line (verbatim caption rail = the on-screen
+  // hook now — no separate title card). Keep this in sync with short.shots[0]'s
+  // opening sentence.
+  hook: 'Set your phone down —\nand it just starts charging.',
 
-  // 9:16, narrated + captions. (short-captioned.mp4 stays silent — post that
-  // variant with a trending sound instead whenever preferred.)
+  // 9:16, one flowing single-take voiceover, verbatim word-synced captions.
+  // Planted loop: "a gap of pure air" (shot 2) closed word-for-word in the
+  // button (shot 6).
   short: {
     shots: [
       {
         step: 0,
-        seconds: 4,
+        seconds: 5,
         dolly: 2.2,
-        caption: 'Set it down — it just charges',
-        narration: 'Set your phone on the pad and it just charges. No cable, no port, nothing even touches.',
+        narration:
+          'Set your phone down, and it just starts charging — no wire, no port, nothing even touching it. So how does the power actually get in?',
       },
       {
         step: 1,
-        seconds: 5,
-        dolly: 1.8,
-        caption: 'Inside: two flat coils that never touch',
-        narration: 'Inside, it’s almost nothing — two flat copper coils, parked a few millimetres apart. They never touch.',
+        seconds: 6,
+        dolly: 2.2,
+        narration:
+          'Strip the shell off, and there’s barely anything here: two flat coils facing each other, separated by a gap of pure air. That gap is the whole trick — nothing ever bridges it.',
       },
       {
         step: 2,
-        seconds: 6,
+        seconds: 7,
         dolly: 1.6,
-        caption: 'AC current makes a magnetic field',
-        narration: 'The pad pushes alternating current through its coil, and that dragging current wraps it in a magnetic field.',
+        narration:
+          'But watch the first coil. The pad drives it with current that flips direction a hundred thousand times a second — and a flipping current always drags a magnetic field along with it.',
       },
       {
         step: 3,
-        seconds: 6,
+        seconds: 7,
         dolly: 1.6,
-        caption: 'That field makes current on the far side',
-        narration: 'A changing field pushes current around any loop it passes through — so the power reappears in the phone’s coil.',
+        narration:
+          'Therefore that field reaches straight across the gap into the second coil. And by the same law that runs a generator, a changing field pushes current into any loop in its path.',
       },
       {
         step: 4,
-        seconds: 5,
+        seconds: 7,
         dolly: 1.7,
-        caption: 'Straightened to DC — the battery fills',
-        narration: 'A tiny chip straightens that current into steady DC, and it trickles into the battery.',
+        narration:
+          'That current is still wobbling back and forth, so a tiny chip straightens it into steady DC before it reaches the battery. About three-quarters of the power the pad puts out actually makes it in.',
       },
       {
         step: 5,
         seconds: 5,
         dolly: 2.2,
-        caption: 'Power across a gap of empty air',
-        narration: 'A field, a current, a gap of empty air. That’s wireless charging.',
+        narration:
+          'No port to wear out, no wire to fray — just power, crossing a gap of pure air.',
       },
     ],
   },

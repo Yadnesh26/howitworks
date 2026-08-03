@@ -32,7 +32,7 @@ export default {
         step: 0,
         seconds: 6,
         dolly: 2.2, // whole-box shot — the widest framing needs the most pull-back
-        caption: 'Every gear is already spinning.',
+        labels: [], // no part named yet — let the claim breathe, no clutter
         narration:
           'Every gear inside this box is already spinning — before you ever touch the lever.',
       },
@@ -40,7 +40,7 @@ export default {
         // 2+3. stakes + the spoken question
         step: 1,
         seconds: 12,
-        caption: "So what does the lever actually do?",
+        labels: [], // rhetorical "the lever" — no specific modeled part discussed yet
         narration:
           "Right now, in neutral, the engine is spinning every single gear at once — and the car doesn't move an inch. So what does the lever actually do?",
       },
@@ -48,7 +48,7 @@ export default {
         // 4. reveal — constant mesh, freewheeling
         step: 3,
         seconds: 11,
-        caption: 'Every gear is meshed, but freewheeling',
+        labels: ['Gears freewheel on the shaft'],
         narration:
           "Here's the secret: every gear is permanently meshed with its partner, but none of them are bolted to the shaft. They just freewheel, spinning free.",
       },
@@ -56,7 +56,7 @@ export default {
         // 5. isolated stat
         step: 2,
         seconds: 9,
-        caption: 'First gear triples the engine’s twist',
+        labels: ['3.5 in · 1 out'],
         narration:
           'In first gear alone, this box triples your engine’s twisting force — enough to launch a two-ton car from a dead stop.',
       },
@@ -64,7 +64,7 @@ export default {
         // 6. BUT — synchro engages the freewheeling gear
         step: 4,
         seconds: 13,
-        caption: 'A brass ring drags it up to speed',
+        labels: ['Brass blocker ring', 'Friction cone'],
         narration:
           "But freewheeling means nothing's connected yet. To lock one in, a brass ring clamps on like a tiny brake pad and drags the spinning gear to the shaft's exact speed.",
       },
@@ -72,7 +72,7 @@ export default {
         // 7. THEREFORE — the sleeve locks it
         step: 5,
         seconds: 10,
-        caption: 'Match, then the sleeve locks it solid',
+        labels: ['Sleeve — splined to the mainshaft'],
         narration:
           'Only when the speeds match does a steel sleeve slide over and lock it solid — a tenth of a second, done entirely by feel.',
       },
@@ -86,7 +86,7 @@ export default {
         // mechanism tiny; 1.9 cropped the output flange and pushed the ratio
         // readout pill into the right edge. 2.2 leaves a margin both sides.
         dolly: 2.2,
-        caption: 'Five ratios — and fourth uses none of them',
+        labels: ['1st', '5th', '4th · direct'],
         narration:
           "And there are five of those trades sitting in here. First to drag you off the line, fifth spinning the output faster than the engine itself — and fourth, which quietly locks straight through and uses no gears at all.",
       },
@@ -95,7 +95,6 @@ export default {
         step: 8,
         seconds: 10,
         dolly: 2.2, // whole-box shot — the widest framing needs the most pull-back
-        caption: 'You’re just catching up to a spinning gear.',
         narration:
           "So next time you shift, you're not grabbing a gear. You're catching up to one that was already spinning, this whole time.",
       },
@@ -105,59 +104,94 @@ export default {
   // 16:9 — ~2:45. Every step, developed, same loop planted and closed.
   long: {
     shots: [
+      // INTRO — 4-part hook (context/contrarian, common belief, contrarian
+      // reinforcement + proof/plan), held on step 0's whole-box establishing view
       {
         step: 0,
-        seconds: 12,
+        seconds: 8,
+        labels: [], // bold claim, no part named yet
         narration:
-          "Every gear inside this gearbox is already spinning, all the time — long before you ever touch the lever. That sounds impossible. Let's open it up and watch it happen.",
+          'Every gear inside this manual gearbox is already spinning — all the time, long before you ever touch the lever.',
+      },
+      {
+        step: 0,
+        seconds: 8,
+        labels: ['Shift lever'], // "shifting" is the subject of this beat
+        narration:
+          "You'd think shifting reaches in and grabs one of them — first, then second, then third, one gear at a time.",
+      },
+      {
+        // still case-on — the contrarian claim doesn't need the reveal yet
+        step: 0,
+        seconds: 7,
+        labels: [],
+        narration:
+          "It doesn't. Every one of them is already turning, whether it's selected or not —",
+      },
+      {
+        // THE case-off transition (step 1's onEnter fires setCase(false)) is
+        // pinned to start exactly on "let's open the case" — not late, not on
+        // the next body shot. Camera fly-to overlaps these opening words.
+        step: 1,
+        seconds: 12,
+        labels: [],
+        narration:
+          "so let's open the case and watch it happen: first gear multiplying the engine's force, the reason the rest keep spinning uselessly, the part that fixes that, and all five ratios turning together at the end.",
       },
       {
         step: 1,
         seconds: 20,
+        labels: ['Layshaft — one rigid cluster', 'Mainshaft'],
         narration:
-          "Inside, it's just three shafts. The engine constantly turns a lower layshaft, and every gear on it spins a partner gear on the mainshaft above. Right now we're in neutral — the engine is turning every gear in the box, and the car doesn't move an inch.",
+          "Inside, it's just three shafts. The engine constantly turns a lower layshaft, and every gear on it spins a partner gear on the mainshaft above. Right now, in neutral, the engine is turning every single one of those gears — and the car doesn't move an inch.",
       },
       {
         step: 2,
-        seconds: 24,
+        seconds: 22,
+        labels: ['15-tooth pinion — cluster', '35-tooth gear — mainshaft', '3.5 in · 1 out'],
         narration:
-          'Watch first gear. A small pinion drives a much bigger gear, and through the whole chain, the engine turns three and a half times for every one turn of the wheels. A gearbox never creates power — it trades speed for torque, and that trade is what gets a two-ton car rolling from a dead stop.',
+          "Therefore, watch what happens the instant first gear locks on. A small pinion drives a much bigger gear, and through that one pair, the engine turns three and a half times for every single turn of the wheels. A gearbox never creates power — it trades speed for torque, and that trade alone is what gets a two-ton car rolling from a dead stop.",
       },
       {
         step: 3,
-        seconds: 24,
+        seconds: 22,
+        labels: ['Gears freewheel on the shaft'],
         narration:
-          "But here's what doesn't add up: every one of those big gears is spinning constantly, in every gear, all the time. So how does only one ever drive the car? Because none of them are actually attached to the mainshaft — each one just freewheels on needle rollers, spinning at its own gear's speed while the shaft stays free.",
+          "But here's what doesn't add up: every one of those bigger gears is spinning constantly, in every gear, all the time — not just first. So how does only one of them ever actually drive the car? Because none of them are bolted to the mainshaft at all. Each one just freewheels on needle rollers, spinning at its own speed while the shaft underneath stays completely free.",
       },
       {
         step: 4,
-        seconds: 20,
+        seconds: 18,
+        labels: ['Brass blocker ring', 'Friction cone', '2nd gear — freewheeling'],
         narration:
-          "To lock one in, you can't just slam two different speeds together — that grinds the teeth to dust. So a brass ring goes first. It presses onto a steel cone like a tiny brake pad, and friction drags the freewheeling gear up to the shaft's exact speed.",
+          "Therefore, to lock one of those freewheeling gears in, you can't just slam two different speeds together — that grinds the teeth to dust in an instant. So a brass ring goes first: it presses onto a steel cone like a tiny brake pad, and friction alone drags that spinning gear up to the shaft's exact speed.",
       },
       {
         step: 5,
-        seconds: 19,
+        seconds: 18,
+        labels: ['Sleeve — splined to the mainshaft'],
         narration:
-          'Only once the speeds match will a steel sleeve slide forward over a ring of dog teeth, locking that gear solid to the mainshaft. Match, block, engage — the whole handshake takes about a tenth of a second, and a driver feels for it, not counts it.',
+          "Only once those two speeds actually match will a steel sleeve slide forward over a ring of dog teeth and lock that gear solid to the mainshaft. Match, block, engage — the whole handshake takes about a tenth of a second, and a driver feels for it, they don't count it.",
       },
       {
         step: 6,
-        seconds: 24,
+        seconds: 22,
+        labels: ['Reverse idler'],
         narration:
-          "Reverse skips all of that. There's no synchro for it, which is why you can only select it stopped — instead, a straight-cut idler gear swings down into mesh on a pivoting arm, bridging the gap and flipping the rotation backwards. It's the only gear in the box without helical teeth, and exactly why reverse is the one gear that whines.",
+          "But reverse skips every part of that. There's no synchro for it at all, which is exactly why you can only select it while stopped — instead, a straight-cut idler gear swings down on a pivoting arm and bridges the gap, flipping the rotation backwards. It's the one gear in the whole box without helical teeth, and that's exactly why reverse is the one gear that whines.",
       },
       {
         step: 7,
-        seconds: 26,
+        seconds: 28,
+        labels: ['Cluster — one steady speed', '1st', '2nd', '3rd', '4th · direct', '5th'],
         narration:
-          "So here's the whole set, with the layshaft held at one steady speed. First is fifteen teeth driving thirty-five — the biggest reduction in the box. Second and third close the gap, until third is twenty-five into twenty-five, an even turn. Fourth drives no gears at all: the sleeve locks the input shaft straight to the output. And fifth runs it backwards — thirty-two teeth driving eighteen, so the output spins faster than the engine. That one's overdrive, and it's why fifth is for cruising, not climbing.",
+          "So here's the whole set, with the layshaft held at one steady speed throughout. First is fifteen teeth driving thirty-five — the biggest reduction in the box. Second and third close that gap, until third lands at twenty-five into twenty-five, a dead-even turn. Fourth drives no gears at all — the sleeve just locks the input shaft straight through to the output. And fifth flips the ratio backwards, thirty-two teeth driving eighteen, so the output actually spins faster than the engine. That one's overdrive, and it's why fifth is for cruising, not climbing.",
       },
       {
         step: 8,
-        seconds: 22,
+        seconds: 20,
         narration:
-          'Clutch out, and away: first, second, third, fourth, fifth. Every shift is the same trick — a fork nudges a sleeve, a brass ring catches a spinning gear up to speed, and the shaft locks on. You were never grabbing a gear. You were catching up to one that was already spinning.',
+          'So clutch out, and away: first, second, third, fourth, fifth. Every single shift is the same trick — a fork nudges a sleeve, a brass ring catches a spinning gear up to speed, and the shaft locks on. You were never grabbing a gear. You were catching up to one that was already spinning.',
       },
     ],
   },

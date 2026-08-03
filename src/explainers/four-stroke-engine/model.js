@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { materials, rod, box, disc, arrow } from '../../framework/parts.js';
-import { beveledBox, finStack, coil } from '../../framework/geometry.js';
+import { materials, rod, disc, arrow } from '../../framework/parts.js';
+import { beveledBox, finStack, coil, lathe, gear, boltCircle } from '../../framework/geometry.js';
 import { callout } from '../../framework/labels.js';
 
 // Slider-crank geometry (all lengths in scene units)
@@ -46,12 +46,40 @@ export function buildEngine({ scene }) {
   const shellMeshes = []; // opaque outer castings — hidden while revealed
   const internalMeshes = []; // mechanism — shown while revealed
 
-  const casing = materials.aluminum(0x30353d);
+  // Two-material story, like a real air-cooled single: bare cast/machined
+  // aluminum for the crankcase, fins and head, set off against dark
+  // gloss-painted covers and a black barrel core (metalness:1 crushes to
+  // black wherever the studio dome behind camera is dark — the paintedMetal
+  // preset's lower metalness + clearcoat keeps dark parts readable instead
+  // of vanishing into the backdrop, exactly the trap the all-silver pass
+  // fell into).
+  const castAlum = (color, { metalness = 0.82, roughness = 0.5 } = {}) => {
+    const m = materials.aluminum(color);
+    m.metalness = metalness;
+    m.roughness = roughness;
+    m.envMapIntensity = 1.25;
+    return m;
+  };
+  const grimeAlum = (color, { metalness = 0.78 } = {}) => {
+    const m = materials.grimyAluminum(color);
+    m.metalness = metalness;
+    m.envMapIntensity = 1.2;
+    return m;
+  };
+  const glossPaint = (color) => {
+    const m = materials.paintedMetal(color);
+    m.clearcoat = 0.6;
+    m.clearcoatRoughness = 0.2;
+    return m;
+  };
+  // rough-cast lower end — a shade darker/duller than the finished head, and
+  // textured with the grime map so it reads as the coarser casting it is
+  const casing = grimeAlum(0x8a919b);
   const steel = materials.brushedSteel(0x9aa2ad);
   const springMat = materials.brushedSteel(0x8a9198);
 
   // --- base + closed crankcase (the solid shell round the crank) -----------
-  const base = box(1.9, 0.18, 1.6, materials.grimyAluminum(0x2e333b));
+  const base = beveledBox(1.9, 0.18, 1.6, grimeAlum(0x6b7480), 0.03);
   base.position.y = 0.09;
   group.add(base); // the plinth stays through the reveal
 
@@ -62,43 +90,89 @@ export function buildEngine({ scene }) {
   group.add(crankcase);
 
   // --- finned cylinder barrel (shell) --------------------------------------
+  // barrel core painted gloss-black (classic air-cooled cylinder treatment)
+  // — the bright aluminum fin rings around it read as the machined edges
+  // catching the light, exactly like the real thing photographs.
   const barrel = new THREE.Mesh(
     new THREE.CylinderGeometry(0.52, 0.54, 0.95, 40),
-    casing,
+    glossPaint(0x24272c),
   );
   barrel.position.y = 2.02;
   barrel.castShadow = true;
   shellMeshes.push(barrel);
   group.add(barrel);
 
+  // shape:'round' — a solid flat disc, not shape:'ring' (a thin TORUS: a
+  // 0.035-radius wire loop out at 0.62 that barely reads against the barrel
+  // and all but disappears from some angles). Real air-cooled fins are
+  // stamped/cast plates, not wire rings — the disc gives them actual mass.
   const fins = finStack(
-    { count: 6, size: 0.62, thickness: 0.035, gap: 0.1, shape: 'ring' },
-    materials.aluminum(0x363b44),
+    { count: 6, size: 0.62, thickness: 0.05, gap: 0.085, shape: 'round' },
+    castAlum(0xb2b9c1, { metalness: 0.85, roughness: 0.36 }),
   );
   fins.position.y = 1.68;
   shellMeshes.push(fins);
   group.add(fins);
 
   // --- cylinder head + cam covers (shell) ----------------------------------
-  const head = beveledBox(1.6, 0.72, 1.0, materials.aluminum(0x3a4048), 0.03);
+  // the head is bright, finely-machined bare aluminum — the brightest metal
+  // on the engine, so the eye reads it as the "finished" casting.
+  const head = beveledBox(
+    1.6, 0.72, 1.0,
+    castAlum(0x9ba2ad, { metalness: 0.88, roughness: 0.34 }),
+    0.03,
+  );
   head.position.y = HEAD_Y + 0.42;
   head.castShadow = true;
   shellMeshes.push(head);
   group.add(head);
 
+  // cam covers painted gloss-black, same family as the barrel — the
+  // aluminum head/fins bracket them on both sides so the dark covers read as
+  // a deliberate accent rather than blending into the backdrop.
   for (const sx of [-0.5, 0.5]) {
-    const camCover = beveledBox(0.46, 0.26, 0.9, materials.aluminum(0x363b44), 0.05);
+    const camCover = beveledBox(0.46, 0.26, 0.9, glossPaint(0x24272c), 0.05);
     camCover.position.set(sx, HEAD_Y + 0.86, 0);
     camCover.castShadow = true;
     shellMeshes.push(camCover);
     group.add(camCover);
   }
 
-  // spark-plug body pokes out the top of the head — an exterior tell
-  const plugBody = rod(0.06, 0.34, materials.paintedMetal(0x1d2026));
+  // spark-plug body pokes out the top of the head — an exterior tell. Real
+  // plug bodies are zinc-plated steel, not painted, so it should read as a
+  // small bright hex-nut accent rather than another dark shape.
+  const plugBody = rod(0.06, 0.34, materials.brushedSteel(0xc7ccd2));
   plugBody.position.set(0, HEAD_Y + 1.02, 0);
   shellMeshes.push(plugBody);
   group.add(plugBody);
+
+  // head + cam-cover fasteners — this is where the anatomy camera actually
+  // gets close, so it's where the detail budget is spent (rung-1 rule: don't
+  // greeble what no step sees). Hex heads, not boltCircle: the head/covers
+  // are rectangular boxes, not discs, so bolts land in a perimeter GRID.
+  function hexBolt(r, h, material) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 6), material);
+    m.castShadow = true;
+    return m;
+  }
+  const headTopY = HEAD_Y + 0.78; // head center + half its 0.72 height
+  for (const bx of [-0.68, 0, 0.68]) {
+    for (const bz of [-0.38, 0.38]) {
+      const b = hexBolt(0.032, 0.05, steel);
+      b.position.set(bx, headTopY + 0.025, bz);
+      shellMeshes.push(b);
+      group.add(b);
+    }
+  }
+  for (const sx of [-0.5, 0.5]) {
+    const coverTopY = HEAD_Y + 0.86 + 0.13; // cover center + half its 0.26 height
+    for (const bz of [-0.36, 0.36]) {
+      const b = hexBolt(0.024, 0.038, steel);
+      b.position.set(sx, coverTopY + 0.019, bz);
+      shellMeshes.push(b);
+      group.add(b);
+    }
+  }
 
   // --- section walls (internal): the casting seen in CROSS-SECTION behind the
   // mechanism, shown only on reveal. Without them the parts float in a void
@@ -148,14 +222,79 @@ export function buildEngine({ scene }) {
   internalMeshes.push(crankPin);
   const mainGeo = new THREE.CylinderGeometry(0.11, 0.11, 1.6, 20);
   mainGeo.rotateX(Math.PI / 2);
+  // TRIED anisoSteel here (turned-shaft grain along the length) and
+  // REVERTED, 2026-08-01 — not because of clipping risk (repeat verify.mjs
+  // runs hit 100-135 clipped px with AND without it, confirming that spike
+  // is the pre-existing spark-timing sampling race, unrelated to this
+  // material), but because the shaft is mostly hidden behind the
+  // flywheel/crankcase at every step camera, so the visual payoff was too
+  // small to justify a non-standard material on a part nobody can see well.
   const mainShaft = new THREE.Mesh(mainGeo, steel);
   mainShaft.castShadow = true;
   crank.add(mainShaft);
   internalMeshes.push(mainShaft);
   group.add(crank);
 
-  // flywheel pokes out the side of the crankcase — spins in both views.
-  const flywheel = disc(0.55, 0.1, materials.aluminum(0x454b55));
+  // flywheel pokes out the side of the crankcase — spins in both views, so it
+  // needs to read as bright machined steel rather than a dark disc. A pure
+  // metalness:1 brushedSteel disc facing camera acts like a small mirror: it
+  // mostly reflects the dark studio dome BEHIND the camera and shows only a
+  // thin bright streak from the strip light — same as castAlum's fix above,
+  // metalness pulled back off 1.0 gives it a visible diffuse floor.
+  // a shade darker/duller than the bare-aluminum shell — steel and aluminum
+  // should not read as the same material.
+  const flywheelMat = materials.brushedSteel(0x999fa8);
+  flywheelMat.metalness = 0.78;
+  flywheelMat.roughness = 0.5;
+  flywheelMat.envMapIntensity = 1.2;
+
+  // A real flywheel is rim-weighted (mass pushed to the outer edge is what
+  // stores the momentum — that's the whole POINT of it), not a flat disc, and
+  // it carries a starter ring gear around the rim. lathe()'s profile is
+  // [radius, y] revolved around Y, so this is authored in a local Y-up frame
+  // (Y = the axial/thickness direction) and rotated to the crank's Z spin
+  // axis once at the end, same as the old flat disc did.
+  const FW_RIM_R = 0.56;
+  const FW_RIM_T = 0.13; // thick outer rim — where the stored momentum lives
+  const FW_WEB_R = 0.4;
+  const FW_WEB_T = 0.055; // thin web between rim and hub — real flywheels are cored out here
+  const FW_HUB_R = 0.11;
+  const FW_HUB_T = 0.09;
+  const flywheelBody = lathe(
+    [
+      [0, 0],
+      [FW_RIM_R, 0],
+      [FW_RIM_R, FW_RIM_T],
+      [FW_WEB_R, FW_RIM_T],
+      [FW_WEB_R, FW_WEB_T],
+      [FW_HUB_R, FW_WEB_T],
+      [FW_HUB_R, FW_HUB_T],
+      [0, FW_HUB_T],
+    ],
+    flywheelMat,
+  );
+
+  // starter ring gear, shrink-fit around the rim — gear()'s teeth extrude
+  // along its own Z, so it needs the same X-rotation as the flywheel to
+  // stand it up on the shared Y axis before the whole assembly turns to Z.
+  const ringGear = gear(
+    { teeth: 60, radius: FW_RIM_R + 0.02, thickness: FW_RIM_T * 0.75, holeR: FW_RIM_R - 0.01 },
+    materials.steel(0x7d838d),
+  );
+  ringGear.rotation.x = Math.PI / 2;
+  ringGear.position.y = FW_RIM_T * 0.42;
+
+  // bolt circle mounting the flywheel to the crank web. boltCircle() already
+  // places bolts in the XZ plane with their axis along Y — the SAME native
+  // frame lathe() uses — so, unlike the gear ring above, this needs no
+  // corrective rotation; adding one (as a copy-paste from the gear fix)
+  // scattered the bolts onto the wrong plane, stranding half of them outside
+  // the hub's actual thickness range and reading as pieces floating in air.
+  const flyBolts = boltCircle(6, FW_HUB_R + 0.09, 0.026, steel, 0.03);
+  flyBolts.position.y = FW_HUB_T;
+
+  const flywheel = new THREE.Group();
+  flywheel.add(flywheelBody, ringGear, flyBolts);
   flywheel.rotation.x = Math.PI / 2;
   flywheel.position.z = 0.9;
   crank.add(flywheel);
@@ -185,9 +324,18 @@ export function buildEngine({ scene }) {
 
   // --- piston with rings (internal) ----------------------------------------
   const piston = new THREE.Group();
+  // metalness pulled back a touch off the brushedSteel preset's default 1.0 —
+  // same reasoning as the shell materials above, and it matters here more
+  // than anywhere else: the crown sits a hair below the spark plug, and a
+  // pure-mirror metal facing straight up into that point light's ignition
+  // flash turns into a razor-thin, fully-clipped hotspot instead of a bright
+  // but readable highlight.
+  const crownMat = materials.brushedSteel(0xccd3dd);
+  crownMat.metalness = 0.88;
+  crownMat.roughness = 0.4;
   const crown = new THREE.Mesh(
     new THREE.CylinderGeometry(PISTON_R, PISTON_R, PISTON_H, 32),
-    materials.brushedSteel(0xccd3dd),
+    crownMat,
   );
   crown.castShadow = true;
   crown.position.y = 0.08;
@@ -279,7 +427,16 @@ export function buildEngine({ scene }) {
     const lobe = new THREE.Shape();
     lobe.absarc(0, 0, 0.07, deg(130), deg(410), false);
     lobe.lineTo(0, 0.135); // nose tip
-    const lobeGeo = new THREE.ExtrudeGeometry(lobe, { depth: 0.1, bevelEnabled: false });
+    // a real cam lobe is ground/polished, not a raw CNC-cut extrusion — a
+    // small bevel on the extrude edge is what stops it reading as a paper
+    // cutout under raking light.
+    const lobeGeo = new THREE.ExtrudeGeometry(lobe, {
+      depth: 0.1,
+      bevelEnabled: true,
+      bevelThickness: 0.012,
+      bevelSize: 0.008,
+      bevelSegments: 2,
+    });
     lobeGeo.translate(0, 0, -0.05);
     const lobeMesh = new THREE.Mesh(lobeGeo, materials.brushedSteel(0xc2c9d3));
     lobeMesh.castShadow = true;
@@ -460,11 +617,17 @@ export function buildEngine({ scene }) {
       opacity = 0.5 * (1 - clamp01((cycle - 560) / 160));
     }
 
-    // spark + fireball from just before TDC through early expansion
+    // spark + fireball from just before TDC through early expansion. Intensity
+    // capped at 20, not the ~60 it was: the plug sits a hair above the piston
+    // crown, and at that near-zero distance a physically-correct inverse-
+    // square point light blows any nearby metal (and the co-located glow
+    // sphere itself) into a fully clipped white disc rather than a bright
+    // specular highlight — dialed back to where the flash still reads as
+    // dramatic without crushing the piston.
     const spark = cycle > 345 && cycle < 430 ? Math.sin(Math.PI * ((cycle - 345) / 85)) : 0;
-    sparkLight.intensity = revealed ? spark * 60 : 0;
+    sparkLight.intensity = revealed ? spark * 20 : 0;
     plugTip.material.opacity = revealed ? spark : 0;
-    plugTip.scale.setScalar(0.6 + spark * 3);
+    plugTip.scale.setScalar(0.6 + spark * 2.2);
     if (spark > 0.2) {
       mat.color.lerpColors(chargeColors.burn, new THREE.Color(0xffe6b0), spark);
       opacity = Math.max(opacity, 0.6 + spark * 0.35);

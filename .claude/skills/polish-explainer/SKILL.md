@@ -69,13 +69,33 @@ Nothing real has a sharp edge; bevels catching light are the single biggest
 
 ### Rung 2 — Physical material features (three r185 supports all of these)
 
-- **Anisotropy** — brushed metal's stretched highlight [CANDIDATE]:
-  `mat.anisotropy = 0.7`, `mat.anisotropyRotation = 0 or Math.PI/2`.
-  Requires UVs (lathe/cylinder geometry has them). Try both rotations and
-  keep the one where the highlight stretches ALONG the brushing grain
-  (perpendicular-to-grain stretch looks wrong instantly). Apply to
-  `brushedSteel` surfaces first — watch case band is the testbed. After
-  validation, add a `materials.anisoSteel(color, rotation)` preset.
+- **Anisotropy** — brushed metal's stretched highlight [VALIDATED,
+  2026-07-28, air-conditioner copper refrigerant tubing]: `materials.anisoSteel(color, rotation)`
+  now exists in `parts.js` (`anisotropy: 0.7` over the `brushedSteel` base).
+  Requires UVs (lathe/cylinder/tube geometry all have them). `rotation` must
+  match the geometry's UV layout — on `TubeGeometry` (drawn pipe/tube: U
+  wraps the circumference, V runs along the length) the real brushing grain
+  runs along the length, so pass `Math.PI/2` to rotate off the default
+  U-alignment onto V; on a flat/lathe surface where U already runs the
+  brushing direction, pass `0`. Always eyeball a close-up screenshot before
+  trusting a rotation — perpendicular-to-grain stretch looks wrong instantly.
+  Costs a small amount of specular energy (watch the clipped-pixel scan —
+  measured +9 to +34 clipped px on air-conditioner's close-up steps, still
+  far under the 150px limit). FAILURE (2026-07-30, wireless-charging litz
+  coils): applying it to the transmitter/receiver flat spiral coils blew the
+  budget to 800-3950 clipped px on the coil/induction/battery close-ups — a
+  large flat spiral filling much of a macro frame concentrates the stretched
+  highlight far more than a slim tubing run does. Reverted to plain
+  `MeshPhysicalMaterial` copper. Don't reapply anisotropy to large
+  frame-filling coil/spiral geometry at macro camera distance without
+  re-verifying the clipped-pixel scan per step. FAILURE (2026-07-30,
+  mechanical-watch case band): same failure mode on a curved LatheGeometry
+  ring rather than a flat spiral — the case band's inner bevel fills most of
+  the frame on the escapement/balance macro steps, and `anisoSteel` there
+  blew clipped px to 2171/3594. Confirms the pattern is about frame coverage
+  at macro distance, not the specific geometry type (tube vs spiral vs lathe
+  ring) — anything curved-and-large in a macro shot is high risk. Reverted to
+  plain `brushedSteel`.
 - **Clearcoat** [VALIDATED]: already in `materials.paintedMetal` (clearcoat 1,
   clearcoatRoughness 0.14). Use for painted housings, glossy plastic, lacquer.
 - **Matte polymer** [VALIDATED — semi-auto-pistol (2026-07-18)]:
@@ -83,26 +103,35 @@ Nothing real has a sharp edge; bevels catching light are the single biggest
   polymer/tool/appliance bodies — `paintedMetal`'s glossy coat reads as cheap
   wet plastic on these, and a high clearcoat also renders at full strength
   while a shell is ghosted (fights the x-ray reveal). Low coat ghosts cleanly.
-- **Fingerprint smudges on gloss** [CANDIDATE]: procedural smudge canvas →
-  `clearcoatRoughnessMap` (smudges live in the *coat*, not the base — this is
-  exactly how real fingerprints on a watch crystal behave). Faint: texels
-  0.1–0.35 over base clearcoatRoughness.
-- **Real refractive glass** [CANDIDATE — big one]: replace the fake
-  opacity-glass preset with `transmission: 1, roughness: 0.04,
-  thickness: 0.08 (thin shells like a watch crystal; thicker for solid
-  glass), ior: 1.52, transparent: false`. CAUTIONS:
-  - One transmissive material triggers an extra full scene render into the
-    transmission buffer — measure frame cost (verify block) before and after.
-  - Our renderer runs `alpha: true`; if the glass shows the page background
-    or black instead of the scene behind it, the transmission buffer is
-    fighting the alpha context — revert to the fake glass preset and record
-    the failure here.
+- **Fingerprint smudges on gloss** [VALIDATED — mechanical-watch (2026-07-30),
+  crystal]: `textures.js` already had `smudgeMap()` (dark base, faint lighter
+  ellipse clusters) — apply as `clearcoatRoughnessMap` with a modest
+  `clearcoat` (0.5) and `clearcoatRoughness` (0.25) on top of a transmissive
+  base (smudges live in the *coat*, not the base — this is exactly how real
+  fingerprints on a watch crystal behave). Nudged the clip gate up slightly
+  (added specular energy per the roughnessMap caution below) but stayed
+  within budget across repeat runs.
+- **Real refractive glass** [VALIDATED — mechanical-watch (2026-07-30),
+  domed crystal]: replace the fake opacity-glass preset with `transmission: 1,
+  roughness: 0.04, thickness: 0.08` (thin shells like a watch crystal; thicker
+  for solid glass), `ior: 1.52, transparent: false`. No `alpha:true` conflict
+  in practice — the dial/hands/batons behind the crystal all rendered through
+  it correctly, no black or page-background leak. The dome even picks up a
+  soft studio-softbox reflection that reads as authentic product-photography
+  gloss rather than a bug. CAUTION still open: frame-cost couldn't be reliably
+  measured in this session's headless environment (repeat A/B timings
+  flip-flopped both directions run to run, swamped by environment noise, even
+  after killing duplicate dev-server processes) — verify.mjs passed cleanly
+  across multiple runs, which is the real functional gate, but if you have
+  access to a real (non-headless, real-GPU) browser, a quick frame-cost sanity
+  check is still worth doing before shipping this on a lower-end target.
   - Other `transparent: true` objects BEHIND transmissive glass may not
     render through it. Check every step camera that looks through the glass.
   - `dispersion` (rainbow edges) only reads on thick glass; skip for thin
     crystals.
-- **Iridescence** [CANDIDATE]: the blue-purple anti-reflective-coating sheen
-  on real watch crystals / camera lenses: `iridescence: 0.15,
+- **Iridescence** [VALIDATED — mechanical-watch (2026-07-30), same crystal]:
+  the blue-purple anti-reflective-coating sheen on real watch crystals /
+  camera lenses: `iridescence: 0.15,
   iridescenceIOR: 1.3, iridescenceThicknessRange: [100, 400]` on the glass
   material. Subtle is the point — at 1.0 it's a soap bubble.
 - **Sheen** [CANDIDATE]: fabric/velvet (display cushions, seat cloth):
@@ -147,7 +176,15 @@ the existing `brushedMap`/`grimeMap` style):
   Re-run the clipped-pixel scan at EVERY step after enabling DOF. HONEST
   WARNING: BokehPass is a simple shader and can look smeary rather than
   filmic — if a screenshot round doesn't clearly win, drop DOF entirely
-  rather than ship a mediocre blur.
+  rather than ship a mediocre blur. CONFIRMED again (mechanical-watch,
+  2026-07-30, escapement/balance macro steps): used a more conservative
+  0.00012 aperture (not the full 0.00016) specifically because this scene
+  already had a known bright-plate hotspot behind the gear train (see the
+  mainplate note in the failure-mode memory) — clipped px on both DOF steps
+  landed near 0-60 across repeat runs, comfortably under budget. Matting the
+  bright metal FIRST (before enabling DOF) is what made this safe; enabling
+  DOF on a scene with an unresolved specular hotspot would very likely have
+  reproduced the pistol gotcha.
 - **Grain + vignette** [CANDIDATE]: tiny ShaderPass before OutputPass —
   grain amplitude ~0.02, vignette darkening ~0.25 at corners. Cheap, makes
   frames feel filmed; same opt-in route as DOF.

@@ -94,11 +94,16 @@ export function buildHydroPlant({ scene }) {
   const casingMat = materials.aluminum(0x8a9199);
   casingMat.roughness = 0.7;
   const linerMat = new THREE.MeshStandardMaterial({ color: 0x24262b, roughness: 0.92, metalness: 0.15 });
-  const bladeMat = materials.brushedSteel(0xb9c2cc);
-  bladeMat.roughness = 0.85;
+  // distinct blue-steel (real Francis runners are commonly anti-corrosion
+  // coated this way) — deliberately NOT the same grey as vaneMat/casingMat,
+  // so the spinning runner reads as a separate part instead of blending into
+  // the fixed casing/vanes around it.
+  const bladeMat = materials.brushedSteel(0x3f7ea6);
+  bladeMat.roughness = 0.55;
   const vaneMat = materials.steel(0x6f7784);
   vaneMat.roughness = 0.6;
-  const pipeMat = materials.paintedMetal(0x35505c);
+  const pipeMatIn = materials.paintedMetal(0x35505c); // pressurized incoming flow
+  const pipeMatOut = materials.paintedMetal(0x747e84); // spent outgoing flow — lighter so it reads as a DIFFERENT pipe where the two pass close together near the turbine
   const wireColor = 0xc9853f;
 
   // =========================================================================
@@ -142,11 +147,11 @@ export function buildHydroPlant({ scene }) {
   const rackGroup = new THREE.Group();
   const rackMat = materials.steel(0x9aa2ad);
   for (let i = -4; i <= 4; i++) {
-    const bar = box(0.018, 0.46, 0.018, rackMat);
+    const bar = beveledBox(0.018, 0.46, 0.018, rackMat, 0.004);
     bar.position.set(DAM_UP_X - 0.03, 1.55, i * 0.055);
     rackGroup.add(bar);
   }
-  const rackFrame = box(0.03, 0.5, 0.52, materials.darkMetal(0x2b3037));
+  const rackFrame = beveledBox(0.03, 0.5, 0.52, materials.darkMetal(0x2b3037), 0.01);
   rackFrame.position.set(DAM_UP_X - 0.04, 1.55, 0);
   rackGroup.add(rackFrame);
   group.add(rackGroup);
@@ -235,10 +240,14 @@ export function buildHydroPlant({ scene }) {
   const chain = chainPath(segments);
   const b = chain.bounds;
 
-  const pipeRadii = [null, 0.09, null, 0.11, null]; // only the penstock/draft-tube get their own visible pipe mesh
+  // segment 2 (casing entry -> runner) now gets a thin visible connector too
+  // — leaving it pipe-less made the flow arrows disappear into open space
+  // right where the path is hardest to follow (through the casing).
+  const pipeRadii = [null, 0.09, 0.045, 0.11, null];
+  const pipeMats = [null, pipeMatIn, pipeMatIn, pipeMatOut, null];
   chain.curves.forEach((curve, i) => {
     if (pipeRadii[i] == null) return;
-    const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 80, pipeRadii[i], 14), pipeMat);
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 80, pipeRadii[i], 14), pipeMats[i]);
     tube.castShadow = true;
     group.add(tube);
   });
@@ -290,6 +299,28 @@ export function buildHydroPlant({ scene }) {
   guideVanesRaw.group.position.y = 0.02;
   turbine.add(guideVanesRaw.group);
 
+  // mounting struts: bolt the (fixed) guide-vane ring to the casing wall so
+  // it visibly reads as anchored hardware, not a second free-spinning
+  // propeller sitting next to the runner — real wicket-gate rings have an
+  // analogous operating-ring/linkage visible from outside the casing. Placed
+  // on the back half, clear of the front sector-cutaway (GAP, centered +Z).
+  const strutMat = materials.steel(0x5f6770);
+  const vaneOuterR = 0.1 + 0.16 + 0.01; // hubR + span, just past the blade tips
+  const casingInnerR = CASING_R - 0.02; // matches casingLiner at this height
+  for (const deg of [200, 260, 320]) {
+    const th = (deg * Math.PI) / 180;
+    const strut = tubeAlong(
+      [
+        [Math.cos(th) * vaneOuterR, 0.02, Math.sin(th) * vaneOuterR],
+        [Math.cos(th) * casingInnerR, 0.02, Math.sin(th) * casingInnerR],
+      ],
+      0.012,
+      strutMat,
+      { tubularSegments: 4 },
+    );
+    turbine.add(strut);
+  }
+
   const runnerSpin = new THREE.Group();
   turbine.add(runnerSpin);
   const runnerRaw = bladeRing(
@@ -300,8 +331,24 @@ export function buildHydroPlant({ scene }) {
   runnerRaw.group.position.y = -0.08;
   runnerSpin.add(runnerRaw.group);
 
-  // shaft: runner -> up through the casing -> up into the generator
-  const shaft = rod(0.045, GEN_Y + GEN_H / 2 - (RUNNER_Y - 0.14), materials.steel(0x8b929c));
+  // spin-accent marker: a small bright emissive pin at the blade tip radius.
+  // The runner's own blades are near-symmetric under its own rotation (13
+  // evenly-spaced blades), so per-frame motion is very hard to read against
+  // the similarly-grey casing/vanes around it — this single asymmetric,
+  // high-contrast marker sweeping in a circle makes the spin unmistakable
+  // at a glance, independent of blade material/lighting.
+  const spinMarker = new THREE.Mesh(
+    new THREE.SphereGeometry(0.02, 12, 10),
+    materials.glow(0x7fe8ff, 2.2),
+  );
+  spinMarker.position.set(0.2, -0.08, 0);
+  runnerSpin.add(spinMarker);
+
+  // shaft: runner -> up through the casing -> up into the generator. Thin
+  // cylindrical rod, safe anisotropy target (rotation PI/2 aligns the
+  // brushed-grain stretch along CylinderGeometry's V/length axis — see
+  // materials.anisoSteel).
+  const shaft = rod(0.045, GEN_Y + GEN_H / 2 - (RUNNER_Y - 0.14), materials.anisoSteel(0x8b929c, Math.PI / 2));
   shaft.position.set(0, -0.14, 0);
   runnerSpin.add(shaft);
 
@@ -332,14 +379,25 @@ export function buildHydroPlant({ scene }) {
     );
     wound.mesh.position.set(Math.cos(theta) * (GEN_R - 0.09), 0, Math.sin(theta) * (GEN_R - 0.09));
     generator.add(wound.mesh);
+    // indicator sits ABOVE the coil (not nested between its wire loops,
+    // where the previous version was easy to miss) and pulses in size, not
+    // just color, so a viewer can see charge visibly "build up" as a pole
+    // sweeps past rather than reading a static brightness change.
     const dotMat = materials.glow(POS_COLOR, 0);
     dotMat.transparent = true;
     dotMat.opacity = 0;
     dotMat.depthWrite = false;
-    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), dotMat);
-    dot.position.copy(wound.mesh.position);
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.038, 12, 10), dotMat);
+    dot.position.set(wound.mesh.position.x, GEN_H * 0.42, wound.mesh.position.z);
     generator.add(dot);
-    statorCoils.push({ theta, dot });
+    // expanding halo ring around the dot — the "buildup" cue itself: grows
+    // and brightens toward a pole's closest approach, collapses after.
+    const ringMat = new THREE.MeshBasicMaterial({ color: POS_COLOR, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.007, 8, 24), ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.copy(dot.position);
+    generator.add(ring);
+    statorCoils.push({ theta, dot, ring });
   }
 
   const rotorSpin = new THREE.Group();
@@ -352,7 +410,7 @@ export function buildHydroPlant({ scene }) {
   const poleS = new THREE.Mesh(poleGeo, materials.paintedMetal(COOL_S));
   poleS.position.set(-0.22, 0, 0);
   rotorSpin.add(poleN, poleS);
-  const genShaftTop = rod(0.045, 0.14, materials.steel(0x8b929c));
+  const genShaftTop = rod(0.045, 0.14, materials.anisoSteel(0x8b929c, Math.PI / 2));
   genShaftTop.position.y = GEN_H * 0.375;
   rotorSpin.add(genShaftTop);
 
@@ -366,7 +424,7 @@ export function buildHydroPlant({ scene }) {
   tank.position.y = 0.14;
   xfmr.add(tank);
   for (let i = -3; i <= 3; i++) {
-    const fin = box(0.02, 0.24, 0.03, materials.aluminum(0x9aa2ad));
+    const fin = beveledBox(0.02, 0.24, 0.03, materials.aluminum(0x9aa2ad), 0.004);
     fin.position.set(0.2, 0.14, i * 0.035);
     xfmr.add(fin);
   }
@@ -446,16 +504,20 @@ export function buildHydroPlant({ scene }) {
   tag('anatomy', group, 'Powerhouse', [1.4, 1.6, 0.4], 60, 60);
   tag('anatomy', group, 'Tailrace', [2.2, 0.5, 0.3], -50, 60);
 
-  tag('reservoir', rackGroup, 'Trash rack & intake gate', [0.05, 0.3, 0.15], -30, 90);
+  tag('reservoir', rackGroup, 'Trash rack & intake gate', [DAM_UP_X - 0.03, 1.85, 0.2], 55, 90);
   tag('reservoir', headGroup, 'Head: the height the water falls', [0, 0.6, 0], 100, 100);
 
   tag('penstock', group, 'Penstock — falling water speeds up', [0.4, 1.4, 0.74], 55, 100);
 
   tag('turbine', casing, 'Spiral casing', [0.05, -0.08, CASING_R * 1.05], 75, 64);
-  tag('turbine', guideVanesRaw.group, 'Guide vanes aim the flow', [0.2, 0, 0.2], -20, 100);
-  tag('turbine', runnerRaw.group, 'Runner — a Francis turbine', [0.15, -0.05, 0.1], -60, 100);
+  tag('turbine', guideVanesRaw.group, 'Guide vanes — fixed, aim the flow', [0.2, 0, 0.2], -20, 100);
+  // parented to the FIXED turbine/generator groups, not the spinning
+  // runnerRaw.group/rotorSpin — a callout on a rotating parent sweeps
+  // around with it every frame, sometimes pointing at the labeled part and
+  // sometimes at empty space or the wrong part entirely.
+  tag('turbine', turbine, 'Runner — a Francis turbine', [0.15, -0.13, 0.1], -60, 100);
 
-  tag('generator', rotorSpin, 'Rotor — spinning magnetic poles', [0.05, 0.1, 0.15], 30, 100);
+  tag('generator', generator, 'Rotor — spinning magnetic poles', [0.24, 0.05, 0.1], 30, 100);
   tag('generator', statorCoils[0].dot, 'Stator — induced AC current', [0.1, 0.15, 0.1], -40, 110);
 
   tag('grid', tank, 'Step-up transformer', [0.05, 0.3, 0.15], 40, 100);
@@ -491,7 +553,10 @@ export function buildHydroPlant({ scene }) {
 
     // induced current in each stator coil: brightest as a rotor pole sweeps
     // past it, sign flips with which pole (N vs S) is closest — an AC EMF.
-    statorCoils.forEach(({ theta, dot }) => {
+    // The dot swells in SIZE (not just brightness) and the ring around it
+    // expands/flares — together reading as charge visibly building up and
+    // releasing, not just a color flicker.
+    statorCoils.forEach(({ theta, dot, ring }) => {
       const rel = Math.cos(theta - state.spin);
       const mag = Math.abs(rel);
       const col = rel >= 0 ? POS_COLOR : NEG_COLOR;
@@ -499,6 +564,10 @@ export function buildHydroPlant({ scene }) {
       dot.material.emissive.set(col);
       dot.material.emissiveIntensity = 0.6 + mag * 1.6;
       dot.material.opacity = 0.25 + mag * 0.7;
+      dot.scale.setScalar(0.7 + mag * 1.1);
+      ring.material.color.set(col);
+      ring.scale.setScalar(0.75 + mag * 1.5);
+      ring.material.opacity = mag ** 3 * 0.8;
     });
 
     headMat.opacity = state.headViz * 0.85;
