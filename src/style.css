@@ -66,6 +66,10 @@ body {
   color: var(--text);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  /* the canvas hands vertical drags to the document scroller (see stage.js's
+     touch-action note); `contain` stops a drag that starts at the top of the
+     page from triggering pull-to-refresh mid-gesture instead of scrolling */
+  overscroll-behavior-y: contain;
 }
 
 /* --- atmosphere: a fixed film-grain veil over everything. pointer-events

@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the fixed canvas fill notched screens edge to
+         edge; layout that must stay clear of the notch/home bar uses the
+         env(safe-area-inset-*) values this unlocks. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>whatDstuff — interactive 3D explainers</title>
   </head>
   <body>

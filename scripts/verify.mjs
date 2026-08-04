@@ -18,6 +18,10 @@
 //   label-visibility  each visible callout's TEXT rect measured against the
 //              active panel + the viewport; >35% hidden = FAIL (the class of
 //              bug the reviewer caught by hand on disc-brakes)
+//   touch-scroll  on a 390x844 touch viewport, a vertical drag OVER THE CANVAS
+//              scrolls the page (OrbitControls' default `touch-action: none`
+//              on a fixed full-viewport canvas made mobile unscrollable)
+//   touch-orbit  a horizontal drag orbits the model and leaves scroll alone
 //   navigation away-and-back leaves exactly 1 <canvas>, 0 orphan .callout
 //   errors     no console errors accumulated across all of the above
 // Warnings (reported, non-fatal — the builder judges intent):
@@ -322,6 +326,130 @@ gate(
         .map((o) => `step ${o.step} "${o.text}" (${Math.round(o.hidden * 100)}% hidden in both a/b frames)`)
         .join('; '),
 );
+
+// --- touch gates: the mobile gesture contract --------------------------------
+// A second context with a real phone viewport + touch emulation. These two
+// gates lock in the axis split that makes the site usable on a phone at all:
+// a vertical drag over the model must scroll the page, a horizontal one must
+// orbit it and NOT scroll. Regressing either is invisible on desktop (the
+// wheel path is untouched), which is exactly how the canvas came to swallow
+// every touch on mobile in the first place.
+//
+// Touches go through CDP Input.dispatchTouchEvent rather than synthetic DOM
+// events on purpose: touch-action is resolved by the compositor, so only real
+// browser-level input exercises the behaviour under test. A dispatched
+// TouchEvent would sail past it and pass on a broken build.
+{
+  const mob = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+    deviceScaleFactor: 2,
+  });
+  const mobErrors = [];
+  mob.on('console', (m) => m.type() === 'error' && mobErrors.push(m.text()));
+  mob.on('pageerror', (e) => mobErrors.push(String(e)));
+
+  const cdp = await mob.context().newCDPSession(mob);
+  const touchPoint = (x, y) => [{ x, y, radiusX: 12, radiusY: 12, force: 1, id: 1 }];
+  // finger down → n intermediate moves → up. The intermediate moves matter:
+  // Chromium only starts a scroll once the gesture clears its slop threshold,
+  // and a single jump from start to end never establishes a direction.
+  async function drag(x0, y0, x1, y1, steps = 12) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: touchPoint(x0, y0),
+    });
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: touchPoint(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t),
+      });
+      await mob.waitForTimeout(16); // ~1 frame apart, so it reads as a drag
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+  const azimuth = () =>
+    mob.evaluate(() => {
+      const { camera, controls } = window.__hiw.stage;
+      return Math.atan2(
+        camera.position.x - controls.target.x,
+        camera.position.z - controls.target.z,
+      );
+    });
+
+  try {
+    await mob.goto(`http://localhost:${port}/#/${id}`);
+    // Deliberately NOT page.waitForFunction here. On this second page of the
+    // browser its polling never resolves even when the predicate is already
+    // true — verified directly: waitForFunction timed out while an immediate
+    // page.evaluate of the *identical* expression returned true, with or
+    // without isMobile, and with rAF ruled out via polling:N. A lone mobile
+    // page works, so it's the two-pages-one-browser case. Poll with evaluate
+    // instead — same approach waitForCameraSettle already uses above.
+    // bringToFront also matters on its own: the stage renders on rAF, and
+    // Chromium throttles that on a backgrounded page, which would leave
+    // controls.update() unapplied and read as 0° of orbit.
+    await mob.bringToFront();
+    const bootDeadline = Date.now() + 20000;
+    let mobBooted = false;
+    while (Date.now() < bootDeadline) {
+      mobBooted = await mob.evaluate(() => !!(window.__hiw?.stepRuntimes?.length > 0));
+      if (mobBooted) break;
+      await mob.waitForTimeout(200);
+    }
+    if (!mobBooted) throw new Error('mobile page never booted (no stepRuntimes after 20s)');
+    await mob.waitForTimeout(1200);
+
+    // what the canvas actually negotiated with the browser — reported either
+    // way so a failure points at the cause instead of just the symptom
+    const env = await mob.evaluate(() => ({
+      coarse: matchMedia('(pointer: coarse)').matches,
+      touchAction: getComputedStyle(document.querySelector('.canvas-holder canvas')).touchAction,
+      scrollable: document.documentElement.scrollHeight - window.innerHeight,
+    }));
+
+    if (env.scrollable < 200) {
+      gate('touch-scroll', false, `page is not scrollable (${env.scrollable}px of travel)`);
+    } else {
+      // vertical: finger travels UP the screen → page scrolls DOWN
+      await mob.evaluate(() => window.scrollTo(0, 0));
+      await mob.waitForTimeout(150);
+      await drag(195, 620, 195, 220);
+      await mob.waitForTimeout(600); // let any fling settle
+      const scrolled = await mob.evaluate(() => window.scrollY);
+      gate(
+        'touch-scroll',
+        scrolled > 100,
+        scrolled > 100
+          ? `vertical drag over the canvas scrolled ${Math.round(scrolled)}px (touch-action: ${env.touchAction})`
+          : `vertical drag over the canvas scrolled ${Math.round(scrolled)}px — the canvas is eating touch input (touch-action: ${env.touchAction}, pointer:coarse=${env.coarse})`,
+      );
+    }
+
+    // horizontal: orbits the model, and must NOT move the page
+    await mob.evaluate(() => window.scrollTo(0, 0));
+    await mob.waitForTimeout(400);
+    const a0 = await azimuth();
+    await drag(90, 430, 320, 430);
+    await mob.waitForTimeout(400);
+    const a1 = await azimuth();
+    const drift = await mob.evaluate(() => window.scrollY);
+    const turned = Math.abs(a1 - a0);
+    gate(
+      'touch-orbit',
+      turned > 0.05 && drift < 40,
+      turned > 0.05 && drift < 40
+        ? `horizontal drag orbited ${((turned * 180) / Math.PI).toFixed(1)}° with the page held still`
+        : `horizontal drag turned ${((turned * 180) / Math.PI).toFixed(1)}° (want >2.9°) and scrolled ${Math.round(drift)}px (want <40)`,
+    );
+  } catch (e) {
+    gate('touch-scroll', false, `mobile probe failed: ${e.message.slice(0, 200)}`);
+  }
+  errors.push(...mobErrors);
+  await mob.close();
+}
 
 // navigation cleanliness
 await page.evaluate(() => (location.hash = '#/'));
