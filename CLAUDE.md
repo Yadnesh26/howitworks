@@ -1,5 +1,9 @@
 # howitworks
 
+Voice, values, and the quality bar live in SOUL.md — read it before writing
+any user-facing copy (step text, summaries, hooks, narration) or judging
+whether a scene is finished. This file covers only how to work.
+
 Interactive 3D "how X works" explainers. Scroll navigates between steps; each
 step's mechanism runs as a seamless real-time loop. Three.js (rendering) +
 anime.js v4 (timelines) + Vite. Fully procedural models — no external 3D
@@ -91,3 +95,11 @@ assets, ever.
    rects go document-space under scroll; project world anchors through the
    camera instead (see verify.mjs's label gate).
 10. **Secrets:** `.env` holds TTS API keys — gitignored; never commit or print.
+
+## Planning docs
+
+- `docs/roadmap.md` — distilled feature/idea backlog; check it before
+  proposing new platform features (it records what's open vs already built,
+  and which ideas conflict with the rules above).
+- `docs/audience-capture-plan.md` — distribution/SEO/email-capture plan; read
+  it before any marketing, OG/meta, routing, or analytics work.

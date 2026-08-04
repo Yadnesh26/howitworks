@@ -6,60 +6,63 @@
 // insight (only one stroke makes power) -> real-world -> callback.
 //
 // steps: 0 anatomy (solid) · 1 intake · 2 compression · 3 power · 4 exhaust · 5 run
+// Short lens: the engine only earns on one stroke of four — it spends the
+// other three and lives off the flywheel. Loop: "the dead strokes" (planted
+// shot 2, closed in the button).
 export default {
-  hook: 'Your car runs on\nthousands of tiny explosions.',
+  hook: 'Your engine is basically\nfreeloading 75% of the time.',
 
   // 9:16 — ~70s.
   short: {
     shots: [
       {
-        // 1. pattern interrupt
+        // 1. hook
         step: 0,
         dolly: 1.85,
         narration:
-          'Your car doesn’t really run on fuel. It runs on thousands of tiny, controlled explosions, every single minute.',
+          'Your engine is basically freeloading three quarters of the time. Out of every four strokes, only one pushes the car.',
       },
       {
-        // 2. hook + 3. question
+        // 2. question + planted loop
         step: 0,
         dolly: 1.85,
         narration:
-          'And it pulls that off with just one piston, sliding up and down, in four simple strokes. So how does a puff of fuel become motion?',
+          'So what are the other three for? And what keeps it spinning through the dead strokes?',
       },
       {
-        // 5. suck
+        // 3. intake — spending begins
         step: 1,
         dolly: 1.4,
         narration:
-          'First, it inhales. The piston drops like a syringe, a valve swings open, and a fine mist of fuel and air rushes in.',
+          'Stroke one is a breath in. The piston drops like a pulled syringe and drags in a fine mist of fuel and air. That already costs energy.',
       },
       {
-        // squeeze
+        // 4. compression — spends more, sets up the payoff
         step: 2,
         dolly: 1.4,
         narration:
-          'Then both valves slam shut, and the piston squeezes that mist into a tiny, tense space. The tighter you pack it, the harder it hits back.',
+          'Stroke two costs even more. Both valves seal, and the piston crushes that mist to a tenth of its volume. But the tighter the squeeze, the harder it hits back.',
       },
       {
-        // bang + insight seed
+        // 5. power — the one paying stroke
         step: 3,
         dolly: 1.4,
         narration:
-          'Now, the spark. The mixture detonates and blasts the piston down. This is the only one of the four strokes that actually makes power.',
+          'Because at the top, the spark fires. The explosion hammers the piston down and spins the crank. This is the only stroke that makes power, and it carries the other three.',
       },
       {
-        // blow
+        // 6. exhaust — back to spending
         step: 4,
         dolly: 1.4,
         narration:
-          'The piston rises again and shoves the burnt gas out the back, leaving the cylinder empty, ready to do it all over again.',
+          'Then it goes straight back to spending. The piston climbs and shoves the burnt gas out, clearing the cylinder for its next breath.',
       },
       {
-        // 6. isolated insight + 8. callback
+        // 7. stat + button (closes the loop)
         step: 5,
         dolly: 1.85,
         narration:
-          'Suck, squeeze, bang, blow. But only one stroke makes power, so a heavy flywheel coasts through the other three, turning a rhythm of explosions into smooth, endless spin.',
+          'At highway speed, that one paying stroke lands about twenty five times a second. A heavy flywheel banks each punch and carries the piston through the dead strokes. One explosion pays for everything.',
       },
     ],
   },

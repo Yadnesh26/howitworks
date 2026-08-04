@@ -24,6 +24,32 @@ screen, word-synced. There is **no separate title card** anymore. So:
 - Every word is read *and* heard. Write lines that land in the ear and read
   clean on screen — short, punchy, no tongue-twisters, no run-ons.
 
+## Packaging first (before writing a word)
+
+Everything reduces to **expectations vs. reality**: the viewer judges the video
+against what the title/hook made them expect. Reality beats expectations → they
+stay and share; expectations beat reality → they leave. You can't engineer that
+gap against a moving target, so lock the packaging before scripting:
+
+- **Idea** — one line naming the curiosity the video resolves. If the target
+  viewer doesn't actually want it answered, no scriptcraft saves it.
+- **Title/hook expectation locked first** — the first spoken line must
+  **confirm** the click (say/show exactly what was promised), then **exceed** it
+  with something the title didn't promise. Opening on anything unrelated to the
+  promise is the fastest way to lose a good-faith click. Never an opaque teaser
+  ("you won't believe this") — the first line names the plot directly.
+- **Story lens** — on a saturated topic, pick the uncommon angle before writing
+  ("your fridge doesn't make cold" is a lens; "how fridges work" is not).
+
+Long-form extras: outline the beats FIRST and gut-check for uniqueness — if
+they restate what the viewer already knows, research more before writing.
+Order body beats **2nd-best → best → 3rd-best** (rising value keeps viewers;
+leading with the best reads as decline). Run each beat context → application →
+framing (what it is → how it works → why it matters to the story).
+
+Short-form extra: shorts **replay on loop** — write the last line together with
+the first line so the button also sets up the hook on replay.
+
 ## The retention spine
 
 Structure every script on this. Times are for a ~60-75s short; a ~2min long
@@ -56,6 +82,55 @@ develops the same beats with more room to breathe.
   abstract noun; a specific number over a vague claim ("boils water in 90
   seconds" beats "cooks fast").
 
+## Voice: modern register, earned slang only
+
+Priority order for this project: intuitive and easy to understand, then
+entertaining — never brand-building for its own sake. Modern conversational
+register serves that (cold-open claims, second person, contractions, casual
+framing metaphors like "earns its keep" / "banks the punch"); actual slang
+vocabulary is a much narrower tool, used only where it sharpens
+understanding.
+
+- **The sweet-spot test: slang must be literally true about the mechanism.**
+  "The intake stroke is freeloading" works because the stroke genuinely
+  spends energy it hasn't earned yet — the slang doubles as the explanation.
+  Decoration slang that carries no mechanical meaning ("no cap," "it's
+  giving," "goes hard," "built different," "rizz," "skibidi") is banned
+  regardless of density — it teaches nothing and reads as trying too hard.
+- **No frequency target, in either direction.** Default is zero. A slang
+  moment has to *earn* its spot by being the clearest, most entertaining way
+  to say that exact thing — once a video, once every five or six videos,
+  whatever the material earns. Never insert one to hit a quota; forced
+  insertions are where cringe comes from. Hard ceiling: 2–3 per short, never
+  a goal to reach.
+- **Best placements when one earns its spot:** the hook, a mid-script
+  re-hook, or the button. Mechanism beats stay clean cause-and-effect prose
+  — that's where "easy to understand" actually lives.
+- **The narrator-voice test.** Read the line in the calm, measured channel
+  voice (see `export-content`). If it needs a smirk or a young, ironic
+  delivery to land, cut it — this pipeline's TTS voice won't sell it.
+- **Mainstream-crossover vocabulary only** — basically, literally,
+  freeloading, carrying, cheat code, for free, wild, dead weight. Understood
+  across ages, doesn't expire with a meme cycle (this library is evergreen).
+  Meme/identity slang is out even at the sweet spot, because it's the first
+  thing to date a script.
+- Worked example (four-stroke-engine short, 2026-08-04): base hook "Your
+  engine makes power only a quarter of the time" → slanged "Your engine is
+  basically freeloading 75% of the time." One word, mechanically true,
+  passes the narrator-voice test — the rest of the script stayed untouched.
+
+## Humanize pass (after the draft, before pre-flight)
+
+Run the `humanizer` skill on the finished draft before locking it in. It
+catches the standing AI tells that keep showing up in narration drafts:
+negative parallelisms ("it's not just X, it's Y"), tailing negations,
+staccato fragment stacks ("No flame. No coil. No contact."), rule-of-three
+padding, aphorism formulas, and — critically for this pipeline — em/en
+dashes, which ElevenLabs renders as dead-air pauses the speed knob can't
+compress. Where humanizer's flattening instinct would fight a deliberate
+retention device, retention wins: the hook and the ≤8-word button are
+allowed one short, emphatic sentence; only a *run* of them is a defect.
+
 ## Non-negotiables (the checklist)
 
 - **Hook in the first spoken sentence.** No warm-up, no "in this video," no
@@ -68,11 +143,17 @@ develops the same beats with more room to breathe.
 - **Plant one loop; close it in the button.**
 - **Isolate the stat** on its own shot with a beat of space around it.
 - **One idea per sentence.** Break run-ons — short sentences read and hear better.
+- **Vary sentence length.** A run of same-length sentences drones regardless of
+  content. Check: lay the script out one sentence per line — a flat right edge
+  means not enough variation.
 - **Analogy per abstract concept;** define jargon the instant it appears.
 - **Second person, contractions, ~2.3 words/sec.** Talk to one viewer.
 - **Button ≤8 words, quotable, closes the loop.** End on the callback — not a new
   fact, and not "like & subscribe."
 - **Never paste the step body copy** — it's written for reading, not listening.
+- **Any slang passes the sweet-spot test** (literally true about the
+  mechanism) and the narrator-voice test, or it gets cut — see "Voice"
+  above. No em/en dashes anywhere (humanizer pass, same section).
 
 ## Worked example (microwave-oven short)
 
@@ -111,6 +192,11 @@ develops the same beats with more room to breathe.
 5. Read the whole script **aloud as one take** — does it flow, or is it a list?
 6. Any sentence with two ideas → split it. Any undefined jargon → define or cut.
 7. Length in range (~60-75s short / ~2min long) at ~2.3 words/sec.
+8. Run the `humanizer` skill on the draft (see "Humanize pass" above);
+   fold in its rewrite except where it would flatten the hook/button.
+9. Any slang word present → sweet-spot test (literally true about the
+   mechanism?) and narrator-voice test. Fails either → cut it. No quota to
+   fill either way.
 
 Then write it into `video.js` and hand off to **`export-content`** (make-narration
 → export). The spoken words become the on-screen captions automatically, so a

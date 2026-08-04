@@ -194,6 +194,28 @@ the existing `brushedMap`/`grimeMap` style):
   like setDress; never tween stage lights from step timelines (gotcha #1 in
   add-explainer applies).
 
+### Rung 5 — Motion & camera craft [CANDIDATE]
+
+Classical-animation principles adapted to machinery. Apply per-step, one change
+at a time, same verify block — and every one must still wrap seamlessly (whole
+cycles per lap; the settle/anticipation happens *within* the loop, not at its
+edges).
+
+- **Mechanical easing (inertia)**: heavy parts take time to start and stop —
+  eased spin-up (`easeInQuad`-ish) and settle (`easeOutCubic`) around a linear
+  cruise; gears/belts cruise linear. A part snapping into place gets a
+  micro-settle (`easeOutElastic` at very low elasticity — a metal *lock*, not a
+  cartoon boing) instead of an instant stop.
+- **Anticipation & follow-through**: before a strike/release (hammer, sear,
+  valve), pull back a fraction first — it cues the energy release. After a
+  halt, let secondary parts (springs, linkages) settle a few frames later —
+  stagger the timeline so not everything stops on the same frame.
+- **Camera moves with intent**: push in by dollying the camera, never by
+  animating FOV; track parallel to a flow being explained (fluid path, sliding
+  piston) so the viewer reads the spatial route; put the point of interest on a
+  thirds intersection rather than dead center. Every move must have a narrative
+  reason — orbit to reveal form, push in to isolate detail.
+
 ## Frame-cost budget (measure, don't guess)
 
 The preview tab is compositor-throttled — FPS counters and rAF timing are
