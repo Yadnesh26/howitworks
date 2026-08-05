@@ -464,6 +464,21 @@ if (wantCaptions && existsSync(wordsPath)) {
   console.log(`captions: legacy summary — ${cues.length} cues${hookLine ? ' + hook' : ''} (no words.json)`);
 }
 
+// NON-OVERLAPPING CUES — the caption-bounce fix.
+// libass renders every event that is live at an instant, STACKING simultaneous
+// ones vertically. So two cues whose time ranges overlap by even a few frames
+// push the caption a full line across the frame and back, which reads as the
+// subtitles jumping up and down for the whole video.
+// The word rail overlaps constantly: its minimum-duration floor (start + 0.15s)
+// overruns the next word's start whenever a word is spoken faster than 150ms.
+// Clamping each cue to end exactly where the next begins removes the stacking
+// without opening gaps — the rail stays continuous, one cue at a time.
+cues.sort((a, b) => a.start - b.start || a.end - b.end);
+for (let i = 0; i < cues.length - 1; i++) {
+  if (cues[i].end > cues[i + 1].start) cues[i].end = cues[i + 1].start;
+}
+cues = cues.filter((c) => c.end > c.start);
+
 // Title holds for the first TITLE_SECONDS then clears, so nothing competes with
 // the mechanism and it can never collide with the CSS2D callouts that float
 // around the model mid-video.
@@ -495,6 +510,17 @@ if (wantCaptions && (cues.length || hookLine || titleText || endCardStart != nul
   // so both formats stay bottom-anchored, clear of them.
   const alignment = 2;
   const marginV = short ? Math.round(viewport.height * 0.15) : 60;
+  // CAPTION BASELINE STABILITY. Bottom-anchored text (alignment 2) grows
+  // UPWARD: a one-line cue sits on the margin, a two-line cue starts a line
+  // higher. Across a word-synced rail the wrap count flips constantly, so the
+  // captions visibly bounce up and down for the whole video.
+  // Fix: top-anchor the caption block (alignment 8) so the FIRST line is
+  // pinned and extra lines extend downward instead. The reserve below keeps a
+  // two-line cue's last line on the old bottom margin, so the block occupies
+  // the same zone as before — it just no longer moves.
+  const capLineHeight = Math.round(fontSize * 1.2);
+  const capAlignment = 8;
+  const capMarginV = Math.max(0, viewport.height - marginV - capLineHeight * 2);
   const titleMarginV = short ? Math.round(viewport.height * 0.09) : 54;
   // when a title card is present the legacy hook drops below it instead of
   // stacking on the same top-center anchor
@@ -519,7 +545,7 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,${alignment},60,60,${marginV},1
+Style: Cap,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,${capAlignment},60,60,${capMarginV},1
 Style: Hook,${fontName},${Math.round(fontSize * 1.15)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,8,60,60,${hookMarginV},1
 Style: Title,${fontName},${Math.round(fontSize * 0.92)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,4,0,1,5,1,8,60,60,${titleMarginV},1
 Style: EndCard,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H7F000000,-1,0,0,0,100,100,0,0,1,5,1,${alignment},60,60,${marginV},1

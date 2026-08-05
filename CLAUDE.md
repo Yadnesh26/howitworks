@@ -30,6 +30,12 @@ assets, ever.
   Iterate with `--steps` + `--half`; full-res full set only for final passes.
 - Video export / TTS narration: `scripts/export-video.mjs`,
   `scripts/make-narration.mjs` (per-explainer editorial lives in `video.js`).
+- Long-form FILM (6–12 min, spans several explainers — a different product from
+  the per-explainer video): `scripts/render-film.mjs <film-id> [--acts 0 --fps 8]`,
+  `scripts/make-film-narration.mjs` (one take per act), `scripts/make-sfx.mjs`
+  + `scripts/make-music.mjs` (ElevenLabs sound + music generation).
+  Editorial lives in `films/<film-id>/film.js`;
+  see `films/README.md`. ALWAYS smoke-render one act at `--fps 8` first.
 - For checks verify.mjs doesn't cover, ad-hoc Playwright probes live under
   `scripts/` (module resolution); name them `*.tmp.mjs`, delete when done.
 
@@ -45,13 +51,17 @@ assets, ever.
 | src/framework/parts.js, geometry.js, textures.js, labels.js | shared procedural toolkit + CSS2D callouts |
 | src/framework/motion.js, callouts.js | pose-math helpers (profileTable etc.) + callout-set registry — import, don't re-implement |
 | src/explainers/\<id\>/ | meta.js (eager card) · index.js (steps) · model.js (3D) · video.js (export only) |
+| films/\<film-id\>/film.js | long-form film manifest: acts → shots across explainers (outside src/ — not bundled) |
+| assets/sfx/, assets/music/ | generated sfx cues (shared with shorts) + music beds |
 | scripts/ | Playwright/FFmpeg export + review tooling |
 
 ## Rules
 
 1. **Use the skills.** New/reworked explainer → `add-explainer`; fidelity
    pass → `polish-explainer`; QA → `review-explainer` (run it via the
-   `explainer-reviewer` agent in a fresh context); video script/narration →
+   `explainer-reviewer` agent in a fresh context); LONG-FORM FILM →
+   `film-scripting` + `sound-design` + `film-production` (the whole thing via
+   the `film-director` agent); video script/narration →
    `video-scripting`; video render → `export-content`; the whole chain in one
    unattended run → `explainer-to-video` (via the `explainer-pipeline` agent).
    They encode every hard-won convention — don't freelance the workflow.
