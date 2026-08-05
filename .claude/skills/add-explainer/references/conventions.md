@@ -128,8 +128,17 @@ In all steps the CAMERA provides the focus; the machine just keeps running.
   `import { beveledBox, lathe, finStack, tubeAlong, boltCircle, bladeRing, gear, chainPath } from '../../framework/geometry.js';`
   `import { clamp01, smooth, win, profileTable, TAU } from '../../framework/motion.js';`
   `import { calloutSets } from '../../framework/callouts.js';`
-- **Materials**: v2 physical presets — `aluminum`, `brushedSteel`, `chrome`,
-  `paintedMetal`, `rubber`, `grimyAluminum`, `heatBluedSteel('u'|'v')`.
+- **Materials**: v2 physical presets — `aluminum`, `brushedSteel`, `anisoSteel`,
+  `chrome`, `paintedMetal`, `polymer`, `rubber`, `wood`, `grimyAluminum`,
+  `heatBluedSteel('u'|'v')`, `opticalGlass`.
+  `opticalGlass({color, thickness, ior, coating})` is REAL refractive glass
+  (transmission + AR-coating iridescence) for anything you look THROUGH — lens
+  elements, cover glass, a watch crystal. Three traps: the transmission pass
+  excludes transmissive objects, so two stacked don't show through each other
+  and a `transparent:true` object behind one can vanish; it DARKENS whatever is
+  behind it, so re-check the contrast of parts you still need to read; and
+  never use it for glass with transparent CONTENTS (a beam drawn inside a
+  prism) — plain transparent glass is correct there.
   CAUTION: `roughnessMap` MULTIPLIES base roughness (map texels ≈ 0.5) — the
   presets read near-chrome on large/curved surfaces; override `.roughness`
   upward (blades 0.85, casings 0.7). Extruded geometry (gears) has ad-hoc
