@@ -675,23 +675,76 @@ code {
 }
 
 @media (max-width: 720px) {
+  /* The step sections still own the scroll length and drive the activation
+     observer, but they no longer POSITION anything: on a phone the panel was a
+     full-width card living inside a 160vh section, so it swept down across the
+     model as you scrolled (readable at the bottom on one step, sitting on top
+     of the piston on the next). Pinning it converts the panel into a real
+     bottom sheet — and gives the camera a CONSTANT safe area to frame into,
+     which SHEET_FRAC in player.js depends on. */
+  .steps {
+    z-index: 3; /* above .player::before's vignette, so the sheet isn't tinted */
+  }
+
   .step {
-    align-items: flex-end;
-    justify-content: center;
-    padding-bottom: 8vh;
+    min-height: 115svh; /* 160vh of thumb travel per step is punishing on a phone */
+    padding: 0;
   }
 
   .panel {
-    width: 92vw;
-    padding: 18px 20px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 34svh; /* keep in step with SHEET_FRAC in player.js */
+    overflow-y: auto;
+    overscroll-behavior-y: auto; /* long copy scrolls, then hands back to the page */
+    padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* only the active step's sheet is visible — the rest are stacked underneath */
+  .panel.active {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .panel h2 {
     font-size: 20px;
+    margin: 6px 0 8px;
+  }
+
+  .panel p {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* A 17px nowrap pill like "Cylinder barrel" is ~190px — half a phone screen,
+     and no amount of repositioning makes two of those fit side by side. Shrink
+     and allow wrapping so the edge-clamp in label-layout.js has something it
+     can actually place. */
+  .callout-text {
+    font-size: 12px;
+    white-space: normal;
+    max-width: 40vw;
+    padding: 4px 9px;
+    border-radius: 8px;
+    line-height: 1.35;
   }
 
   .rail {
     right: 12px;
+  }
+
+  /* the sheet owns the bottom of the screen now */
+  .scroll-hint {
+    display: none;
   }
 
   .player-hero {

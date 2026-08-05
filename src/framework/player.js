@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { animate, createTimeline, stagger } from 'animejs';
-import { createStage } from './stage.js';
+import { createStage, REF_ASPECT, FOV_REF, isExportRender } from './stage.js';
 import { scrubTimeline, loopTimeline } from './scroll.js';
 import * as parts from './parts.js';
 import { setFocusCallouts } from './highlight.js';
@@ -90,7 +90,53 @@ export function mountExplainer(def, container) {
   // --- step activation (camera, rail, panels, loop start/stop) -----------
   let activeIndex = -1;
 
-  function flyTo({ position, target }) {
+  // Second half of the portrait correction (stage.js owns the first — it
+  // widens the FOV as far as it can without fisheye). Whatever horizontal
+  // extent that didn't recover is bought with camera distance, and the whole
+  // rig is then dropped so the subject rides ABOVE the bottom sheet instead of
+  // behind it.
+  //
+  // SUBJECT_W is the one empirical constant: the fraction of the desktop frame
+  // width a subject actually occupies. It isn't 1.0 because the text panel owns
+  // the left third, so a well-composed shot centres its subject in the
+  // remainder. Too high and phones over-dolly until the model is a speck; too
+  // low and it still runs off the edges. Tuned against mobile review-shots.
+  // 0.50 framed four-stroke beautifully but put internet-request — the widest
+  // scene in the library — exactly on the frame edge with no margin. Clipping
+  // a subject is worse than a little dead space, and only 2 of 36 explainers
+  // have been sampled, so this keeps ~8% in hand for the untested ones.
+  const SUBJECT_W = 0.54;
+  // Fraction of the viewport height the bottom sheet covers. Must stay in step
+  // with .panel's max-height in the mobile CSS — if the sheet grows and this
+  // doesn't, models start hiding behind it again.
+  const SHEET_FRAC = 0.34;
+
+  function frameForViewport({ position, target }) {
+    const cam = stage.camera;
+    const aspect = cam.aspect;
+    if (isExportRender() || !aspect || aspect >= REF_ASPECT) return { position, target };
+
+    const halfNow = Math.tan((cam.fov * Math.PI) / 360);
+    const halfRef = Math.tan((FOV_REF * Math.PI) / 360);
+    // how much wider the frame must be to still hold the subject...
+    const need = Math.max(1, (REF_ASPECT / aspect) * SUBJECT_W);
+    // ...minus what the FOV widening already bought us
+    const dolly = Math.max(1, need / (halfNow / halfRef));
+
+    const p = position.map((v, k) => target[k] + (v - target[k]) * dolly);
+    const dist = Math.hypot(p[0] - target[0], p[1] - target[1], p[2] - target[2]);
+    // Lower camera AND target together: a pure vertical translation of the rig,
+    // which slides the subject UP the frame without changing the viewing angle
+    // the pose was composed at.
+    const lift = SHEET_FRAC * dist * halfNow;
+    return {
+      position: [p[0], p[1] - lift, p[2]],
+      target: [target[0], target[1] - lift, target[2]],
+    };
+  }
+
+  function flyTo(pose) {
+    const { position, target } = frameForViewport(pose);
     // video export sets __hiwCameraScale > 1 for portrait renders: dolly the
     // camera out along the view axis so landscape-framed shots still fit.
     // A bare global (not on __hiw) so the export can set it via addInitScript,
@@ -130,8 +176,12 @@ export function mountExplainer(def, container) {
     // stageOptions.dof): focus at the step's own camera-to-target distance,
     // aperture from step.dofAperture (near-zero default keeps wides sharp)
     if (stage.bokehPass && step.camera) {
-      const [px, py, pz] = step.camera.position;
-      const [tx, ty, tz] = step.camera.target;
+      // must use the SAME adjusted pose flyTo flies to — on portrait the rig is
+      // dollied back, and focusing at the authored distance would throw the
+      // whole subject out of focus
+      const framed = frameForViewport(step.camera);
+      const [px, py, pz] = framed.position;
+      const [tx, ty, tz] = framed.target;
       stage.bokehPass.uniforms.focus.value = Math.hypot(px - tx, py - ty, pz - tz);
       stage.bokehPass.uniforms.aperture.value = step.dofAperture ?? 0.00002;
     }

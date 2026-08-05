@@ -71,6 +71,34 @@ import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { declutterCallouts } from './label-layout.js';
 
+// --- portrait framing --------------------------------------------------------
+// Every explainer authors its camera poses against the desktop frame
+// (1280x800 = aspect 1.6). Vertical FOV is fixed, so on a phone (~0.46) the
+// HORIZONTAL window collapses to a third of what the pose was composed for and
+// wide subjects run off both edges — the "model is all over the screen" defect.
+//
+// Recover part of it by widening the vertical FOV, and only part: a true
+// horizontal-FOV lock would need ~106deg here and fisheye every shot. The
+// player spends the remainder on camera distance (see frameForViewport there),
+// so the two halves of the correction must agree on these constants.
+export const REF_ASPECT = 1.6;
+export const FOV_REF = 42;
+const FOV_MAX = 55;
+
+export function fovForAspect(aspect) {
+  if (!aspect || aspect >= REF_ASPECT) return FOV_REF;
+  const halfRef = Math.tan((FOV_REF * Math.PI) / 360);
+  const wanted = (Math.atan(halfRef * (REF_ASPECT / aspect)) * 360) / Math.PI;
+  return Math.min(FOV_MAX, wanted);
+}
+
+// Video export renders portrait too (1080x1920 shorts), but it already owns
+// its framing via __hiwCameraScale. Letting the mobile correction fire there
+// would double-correct and silently change already-approved output, so every
+// portrait adjustment is gated on this. __vt is the export's virtual clock —
+// the same signal player.js uses to keep the hero bob out of rendered frames.
+export const isExportRender = () => typeof window !== 'undefined' && !!window.__vt;
+
 // Reusable 3D stage: renderer + camera + lights + soft-shadow floor.
 // Every explainer gets one; the player owns its lifecycle.
 export function createStage(container, options = {}) {
@@ -127,9 +155,10 @@ export function createStage(container, options = {}) {
     (err) => console.warn('[stage] HDRI unavailable, keeping synthetic env:', err),
   );
 
+  const startAspect = container.clientWidth / container.clientHeight;
   const camera = new THREE.PerspectiveCamera(
-    42,
-    container.clientWidth / container.clientHeight,
+    isExportRender() ? FOV_REF : fovForAspect(startAspect),
+    startAspect,
     0.1,
     100,
   );
@@ -270,6 +299,9 @@ export function createStage(container, options = {}) {
     const h = container.clientHeight;
     if (!w || !h) return; // never propagate a zero-size layout
     camera.aspect = w / h;
+    // portrait/rotation changes the FOV correction too — recompute here rather
+    // than only at creation, so an orientation flip reframes instead of cropping
+    if (!isExportRender()) camera.fov = fovForAspect(camera.aspect);
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
     composer?.setSize(w, h);
