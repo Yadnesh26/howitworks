@@ -96,6 +96,15 @@ Nothing real has a sharp edge; bevels catching light are the single biggest
   at macro distance, not the specific geometry type (tube vs spiral vs lathe
   ring) — anything curved-and-large in a macro shot is high risk. Reverted to
   plain `brushedSteel`.
+  NON-FAILURE (2026-08-05, dslr-camera lens bezel/mount/bayonet trim): applied
+  `anisoSteel(color, 0)` to the whole trim group — including the front bezel
+  ring, which rims the frame on the aperture macro step — and clipped px did
+  not move at all (10 worst, unchanged, limit 150). Rotation 0 is right for a
+  bezel: on those cylinders U wraps the circumference, which is the direction a
+  lens ring is actually brushed. Refines the rule: the risk is a large curved
+  surface whose BRIGHT FACE fills a macro frame (case band, flat spiral), not
+  merely a ring that is on-screen at macro distance — a slim ring seen edge-on
+  is safe. Still re-run the scan; it is cheap.
 - **Clearcoat** [VALIDATED]: already in `materials.paintedMetal` (clearcoat 1,
   clearcoatRoughness 0.14). Use for painted housings, glossy plastic, lacquer.
 - **Matte polymer** [VALIDATED — semi-auto-pistol (2026-07-18)]:
@@ -110,7 +119,12 @@ Nothing real has a sharp edge; bevels catching light are the single biggest
   base (smudges live in the *coat*, not the base — this is exactly how real
   fingerprints on a watch crystal behave). Nudged the clip gate up slightly
   (added specular energy per the roughnessMap caution below) but stayed
-  within budget across repeat runs.
+  within budget across repeat runs. CONFIRMED again (2026-08-05, dslr-camera
+  rear LCD) on a NON-transmissive base: same `clearcoatRoughnessMap:
+  smudgeMap()` over `clearcoat: 0.8`, with `clearcoatRoughness` raised
+  0.08 -> 0.22 so the map has something to modulate. Zero change in clipped px.
+  A rear screen that has never been thumbed is one of the loudest
+  born-in-a-computer tells on any consumer product.
 - **Real refractive glass** [VALIDATED — mechanical-watch (2026-07-30),
   domed crystal]: replace the fake opacity-glass preset with `transmission: 1,
   roughness: 0.04, thickness: 0.08` (thin shells like a watch crystal; thicker
@@ -125,11 +139,34 @@ Nothing real has a sharp edge; bevels catching light are the single biggest
   across multiple runs, which is the real functional gate, but if you have
   access to a real (non-headless, real-GPU) browser, a quick frame-cost sanity
   check is still worth doing before shipping this on a lower-end target.
+  CONFIRMED (2026-08-05, dslr-camera lens elements): same numbers with
+  `thickness: 0.16` and `ior: 1.62` (optical crown glass, not window glass)
+  turned a flat grey disc into a lens front that reads as real glass — the
+  single biggest visual return in that model's whole pass. Now available as
+  `materials.opticalGlass({color, thickness, ior, coating})` in `parts.js`.
+  Clipped px went 1 -> 10 (limit 150); frame cost stayed under budget because
+  the elements are HIDDEN on the x-ray steps, so transmission only doubles the
+  draw calls (93 -> 224) on the three sealed-product steps.
+  THIRD CAUTION discovered: the transmission backbuffer excludes transmissive
+  objects, so two stacked do not render through each other — three lens
+  elements in a row show only the front one. Fine (often better) when what you
+  need to see behind the glass is opaque; fatal if it isn't.
+  FOLLOW-ON TRAP, cost a user-reported regression: real glass DARKENS the whole
+  cavity behind it. Anything inside that was legible against the old fake-glass
+  veil can end up the same near-black as its background — here the aperture
+  blades and the hole between them both went black and the iris lost its edge
+  entirely. After switching a part to transmissive glass, re-check the contrast
+  of everything BEHIND it and re-light/re-tone those parts (blackened blades ->
+  satin steel at 0x79818d/metalness 0.8/roughness 0.42 fixed it, and reads
+  truer to "steel blades" anyway).
   - Other `transparent: true` objects BEHIND transmissive glass may not
     render through it. Check every step camera that looks through the glass.
   - `dispersion` (rainbow edges) only reads on thick glass; skip for thin
     crystals.
-- **Iridescence** [VALIDATED — mechanical-watch (2026-07-30), same crystal]:
+- **Iridescence** [VALIDATED — mechanical-watch (2026-07-30), same crystal;
+  again on dslr-camera lens elements (2026-08-05) at `iridescence: 0.28`, where
+  a camera's multi-coating sits — a lens coating is genuinely louder than a
+  watch crystal's, and 0.28 still reads as a coating, not a soap bubble]:
   the blue-purple anti-reflective-coating sheen on real watch crystals /
   camera lenses: `iridescence: 0.15,
   iridescenceIOR: 1.3, iridescenceThicknessRange: [100, 400]` on the glass
@@ -194,6 +231,39 @@ the existing `brushedMap`/`grimeMap` style):
   like setDress; never tween stage lights from step timelines (gotcha #1 in
   add-explainer applies).
 
+### Rung 5 — Motion & camera craft [CANDIDATE]
+
+Classical-animation principles adapted to machinery. Apply per-step, one change
+at a time, same verify block — and every one must still wrap seamlessly (whole
+cycles per lap; the settle/anticipation happens *within* the loop, not at its
+edges).
+
+- **Mechanical easing (inertia)**: heavy parts take time to start and stop —
+  eased spin-up (`easeInQuad`-ish) and settle (`easeOutCubic`) around a linear
+  cruise; gears/belts cruise linear. A part snapping into place gets a
+  micro-settle (`easeOutElastic` at very low elasticity — a metal *lock*, not a
+  cartoon boing) instead of an instant stop.
+- **Anticipation & follow-through** [VALIDATED, 2026-08-05, dslr-camera mirror
+  + shutter curtains]: before a strike/release (hammer, sear, valve), pull back
+  a fraction first — it cues the energy release. After a halt, let secondary
+  parts (springs, linkages) settle a few frames later — stagger the timeline so
+  not everything stops on the same frame. Implement both as narrow Gaussian
+  bumps on the lap parameter, added INSIDE the pose function
+  (`0.014 * Math.exp(-(((u - at) / w) ** 2))`) — not as anime easings, since
+  the loop is one linear tween. TRAP: a Gaussian centred near u=0 (or u=1) has
+  a non-zero tail at the OTHER end of the lap, so the wrap pose stops matching
+  and the loop seams. Keep every bump's centre at least ~3 widths inside the
+  lap, or gate it off in the timing variant that pushes its event to the edge.
+  verify.mjs CANNOT catch this — it only samples 20% vs 70% — so diff the pose
+  at u=0 against u=1-epsilon yourself. Apply a curtain/shutter settle to the
+  moving SLATS only, never to the scalar that also drives an exposure or flow
+  fraction, or the derived quantity flickers.
+- **Camera moves with intent**: push in by dollying the camera, never by
+  animating FOV; track parallel to a flow being explained (fluid path, sliding
+  piston) so the viewer reads the spatial route; put the point of interest on a
+  thirds intersection rather than dead center. Every move must have a narrative
+  reason — orbit to reveal form, push in to isolate detail.
+
 ## Frame-cost budget (measure, don't guess)
 
 The preview tab is compositor-throttled — FPS counters and rAF timing are
@@ -205,6 +275,14 @@ meaningless there. Measure explicit render cost instead, which works fine:
   for (let i = 0; i < 30; i++) s.composer.render();
   return (performance.now() - t0) / 30; })()
 ```
+
+Warm EVERY step before timing anything (activate each, render ~10 frames).
+Shader compilation happens on a material's first render, so whichever step you
+measure first otherwise eats the whole compile and reads 5-10x high — on
+dslr-camera an unwarmed first step reported 34-84 ms and a warmed one 5 ms,
+same code. Timings still swing run to run in headless/SwiftShader (see the
+transmission note above); draw calls and triangle counts are deterministic and
+are the numbers to trust when timings disagree.
 
 Budget: **≤ 10 ms average** (leaves headroom for animation + labels at 60fps
 on mid-range GPUs). Measure BEFORE starting the ladder to get the model's

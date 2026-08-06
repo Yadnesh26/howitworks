@@ -84,6 +84,31 @@ export const materials = {
       clearcoat: 0.15,
       clearcoatRoughness: 0.62,
     }),
+  // Real refractive optical glass — lens elements, cover glass, anything you
+  // look THROUGH [VALIDATED, 2026-08-05, dslr-camera lens elements]. Uses
+  // transmission rather than faked opacity, so what sits behind it is genuinely
+  // bent, and `coating` is the blue-violet anti-reflective bloom every modern
+  // multi-coated element has (0.28 reads as a coating; 1.0 is a soap bubble).
+  // TWO CAUTIONS: the transmission pass renders a backbuffer that EXCLUDES
+  // transmissive objects, so two of these stacked do not show through each
+  // other and a `transparent: true` object behind one may vanish outright; and
+  // never use it for glass with transparent CONTENTS (a light beam drawn inside
+  // a prism) — plain transparent glass is the correct material there.
+  opticalGlass: ({ color = 0xdfe9ff, thickness = 0.16, ior = 1.62, coating = 0.28 } = {}) =>
+    new THREE.MeshPhysicalMaterial({
+      color,
+      metalness: 0,
+      roughness: 0.04,
+      transmission: 1,
+      thickness,
+      ior,
+      transparent: false,
+      side: THREE.FrontSide,
+      iridescence: coating,
+      iridescenceIOR: 1.3,
+      iridescenceThicknessRange: [180, 520],
+    }),
+
   // varnished laminate wood — rifle/tool furniture, handles, stocks. The grain
   // colour rides a woodGrainMap; `tint` multiplies it (default white keeps the
   // map's own browns). A light clearcoat gives the satin varnish sheen.

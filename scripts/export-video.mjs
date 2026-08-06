@@ -85,7 +85,23 @@ const displayTitle =
 // which reads as the captions randomly "jumping" position in the last few
 // seconds — confirmed 2026-07-28 by comparing rendered frames. Default is
 // single-line for this reason; only go multi-line with a deliberate reason.
-const endCardText = editorial?.endCard ?? 'Share it.';
+//
+// The default is FORMAT-AWARE (2026-08-05): a short's job is to feed the
+// long-form, so it points at YouTube, while the long-form IS the YouTube
+// video and keeps the share CTA (telling a YouTube viewer to watch it on
+// YouTube reads as a mistake).
+//
+// The short's card is two lines on purpose, and that is the "deliberate
+// reason" the caveat above asks for. Every single-line phrasing that
+// actually names YouTube overflows the 960px short-form budget at 84px
+// Arial Black — measured, not guessed: "Full video on YouTube" 1007px,
+// "Full version on YouTube" 1095px, "Full length on YouTube" 1049px. Split
+// across two lines, both fit with real margin (849px and 535px). The
+// sits-higher side effect is harmless here specifically: the end card is
+// scheduled AFTER the last spoken caption, so there is no rail caption on
+// screen for it to be mistaken for.
+const SHORT_END_CARD = ['Full length version', 'on YouTube'].join('\n');
+const endCardText = editorial?.endCard ?? (format === 'short' ? SHORT_END_CARD : 'Share it.');
 
 // --- launch page with virtual clock --------------------------------------
 const framesDir = join(outRoot, `${format}-frames`);

@@ -38,14 +38,14 @@ export default {
         step: 2,
         seconds: 6,
         labels: ['PRN code', 'Ephemeris + transmit timestamp'],
-        narration: 'Twenty-four satellites, twenty thousand kilometers up, just repeat the same two things forever — their own position, and the exact time they said it.',
+        narration: 'Twenty-four satellites, twenty thousand kilometers up, just repeat the same two things forever: their own position, and the exact time they said it.',
       },
       {
         // mechanism beat 2 (BUT)
         step: 3,
         seconds: 6,
         labels: ['Range = c × travel time'],
-        narration: 'Your phone times how long that took to arrive and multiplies by the speed of light. But one satellite alone only gives you a sphere — you could be anywhere on it.',
+        narration: 'Your phone times how long that took to arrive and multiplies by the speed of light. But one satellite alone only gives you a sphere. You could be anywhere on it.',
       },
       {
         // mechanism beat 3 (THEREFORE) — wide 3-satellite shot crops in
@@ -54,7 +54,7 @@ export default {
         seconds: 6,
         dolly: 1.9,
         labels: ['Sphere of possible positions', 'Fix narrows to one point'],
-        narration: 'Therefore it listens for two more. Where all three spheres overlap… that’s roughly you.',
+        narration: 'Therefore it listens for two more. Where all three spheres overlap, that’s roughly you.',
       },
       {
         // re-hook mid-way — same portrait-crop issue (4-satellite spread)
@@ -62,7 +62,7 @@ export default {
         seconds: 7,
         dolly: 2.1,
         labels: ['Unknown clock bias blurs the fix', '4th satellite solves it'],
-        narration: 'But your phone’s clock is cheap, and slightly wrong — so it actually needs a fourth satellite just to cancel out its own mistake.',
+        narration: 'But your phone’s clock is cheap, and it runs a little off. So it actually needs a fourth satellite just to clean up after it.',
       },
       {
         // the stat, isolated
@@ -75,7 +75,7 @@ export default {
         // so-what
         step: 7,
         seconds: 5,
-        narration: 'Watch that number lock in — a fresh, exact fix, solved about once a second.',
+        narration: 'Watch that number lock in: a fresh, exact fix, solved about once a second.',
       },
       {
         // button — closes the hook’s loop

@@ -9,6 +9,14 @@
 //                 a fix so one changed step doesn't cost a full re-render
 //   --half        640x400 instead of 1280x800 — cheaper to capture AND far
 //                 cheaper for an agent to read; full res for final passes
+//   --mobile      390x844 portrait with touch emulation instead of landscape.
+//                 Portrait is a DIFFERENT product: the camera poses are
+//                 authored at aspect 1.6 and a phone is ~0.46, the panel is a
+//                 bottom sheet rather than a left column, and callouts have a
+//                 screen edge to run off. None of that is visible in a
+//                 landscape capture, which is exactly how mobile rotted this
+//                 far unnoticed. Writes to <outDir> with an -m suffix so a
+//                 mobile run never overwrites the desktop set.
 //   --sheet       emit contact-sheet.png (all captures stitched into one
 //                 image — a whole-explainer glance is ONE image read). ON BY
 //                 DEFAULT for a full-set capture (the cheapest way to review
@@ -44,11 +52,15 @@ const onlySteps = flags.steps
   ? String(flags.steps).split(',').map((s) => parseInt(s, 10) - 1)
   : null;
 const half = !!flags.half;
+const mobile = !!flags.mobile;
+const shot = (name) => `${outDir}/${name}${mobile ? '-m' : ''}.png`;
 mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch();
 const page = await browser.newPage({
-  viewport: half ? { width: 640, height: 400 } : { width: 1280, height: 800 },
+  ...(mobile
+    ? { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }
+    : { viewport: half ? { width: 640, height: 400 } : { width: 1280, height: 800 } }),
 });
 page.on('console', (m) => {
   if (m.type() === 'error') console.error(`[page error] ${m.text()}`);
@@ -83,8 +95,8 @@ console.log(`${id}: ${steps} steps, capturing [${captureList.map((i) => i + 1).j
 const files = [];
 // hero shot only on full runs (it's the pre-scroll landing frame)
 if (!onlySteps) {
-  await page.screenshot({ path: `${outDir}/00-hero.png` });
-  files.push('00-hero.png');
+  await page.screenshot({ path: shot('00-hero') });
+  files.push(`00-hero${mobile ? '-m' : ''}.png`);
 }
 
 for (const i of captureList) {
@@ -121,8 +133,8 @@ for (const i of captureList) {
       [i, frac],
     );
     await page.waitForTimeout(160); // one rendered frame at the seeked pose
-    await page.screenshot({ path: `${outDir}/${tag}-${suffix}.png` });
-    files.push(`${tag}-${suffix}.png`);
+    await page.screenshot({ path: shot(`${tag}-${suffix}`) });
+    files.push(`${tag}-${suffix}${mobile ? '-m' : ''}.png`);
   }
   // NOTE: deliberately no tl.play() resume here — playing a pause+seek()ed
   // looped timeline wedges the anime engine (page main thread hangs; found
@@ -142,8 +154,11 @@ if (wantSheet && files.length) {
       return `<div class="c"><img src="data:image/png;base64,${b64}"><span>${f}</span></div>`;
     })
     .join('');
+  // portrait cells are tall and narrow — 2 columns of them makes a sheet so
+  // long each frame is unreadably small. 4 across keeps a mobile set glanceable.
+  const cols = mobile ? 4 : 2;
   const html = `<style>
-    body{margin:0;background:#111;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:6px}
+    body{margin:0;background:#111;display:grid;grid-template-columns:repeat(${cols},1fr);gap:6px;padding:6px}
     .c{position:relative}
     img{width:100%;display:block}
     span{position:absolute;top:4px;left:6px;font:12px monospace;color:#fff;background:#000a;padding:1px 5px;border-radius:3px}

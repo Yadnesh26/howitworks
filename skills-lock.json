@@ -13,6 +13,12 @@
       "skillPath": "designing-beautiful-websites/SKILL.md",
       "computedHash": "8c5bd91e0a85c9dd07de4a2b42378020603ce878065ccb382b621004e1e15f62"
     },
+    "humanizer": {
+      "source": "blader/humanizer",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "73c03cc8028b39c9c2ecb94b81e9c9cf4276e4062ac127ed251006ab7facd67d"
+    },
     "logo-designer": {
       "source": "luongnv89/skills",
       "sourceType": "github",
