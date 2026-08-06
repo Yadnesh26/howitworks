@@ -19,6 +19,7 @@ import { setLeader } from './labels.js';
 const MARGIN = 5; // px of clear space required between pills
 const EDGE = 6; // px of clear space required against the frame edge
 const GAP = 4; // labels.js's own pill-to-leader offset — must match
+const MOBILE_MAX = 720; // must match the max-width breakpoint in style.css
 
 // Where setLeader will put a pill's left edge for a given endpoint offset.
 // Mirrors the transform in labels.js: the pill hangs off whichever side of the
@@ -57,12 +58,18 @@ export function declutterCallouts(scene) {
   // desktop the panel is a narrow left column and is NOT a vertical bound, so
   // this only engages when the panel actually spans the frame.
   let floorY = frame.bottom - EDGE;
-  const panel = document.querySelector('.panel.active');
-  if (panel) {
+  // `:not(.expanded)` on purpose: the expanded panel is a transient state the
+  // reader opened deliberately, and treating it as the floor would yank every
+  // label up the screen on each tap. The collapsed caption bar is the real,
+  // persistent obstruction.
+  const panel = document.querySelector('.panel.active:not(.expanded)');
+  // Gate on the CSS breakpoint, not on the panel spanning the frame: the mobile
+  // caption is now a centred pill only as wide as its title, so a width test
+  // would never fire and labels would drift back underneath it. On desktop the
+  // panel is a left-hand column, which is not a vertical bound at all.
+  if (panel && frame.width <= MOBILE_MAX) {
     const pr = panel.getBoundingClientRect();
-    if (pr.width > frame.width * 0.9 && pr.top > frame.top) {
-      floorY = Math.min(floorY, pr.top - MARGIN);
-    }
+    if (pr.top > frame.top) floorY = Math.min(floorY, pr.top - MARGIN);
   }
 
   for (const it of items) {

@@ -47,15 +47,37 @@ export function mountExplainer(def, container) {
     const section = document.createElement('section');
     section.className = 'step';
     section.dataset.index = i;
+    // .panel-head groups the always-visible row (number + heading + chevron)
+    // so mobile can collapse the panel to just that line. On desktop the
+    // wrapper is `display: contents`, so it generates no box and the panel
+    // lays out exactly as it always has.
     section.innerHTML = `
       <div class="panel">
-        <span class="panel-num">${String(i + 1).padStart(2, '0')} / ${String(def.steps.length).padStart(2, '0')}</span>
-        <h2>${step.heading}</h2>
+        <div class="panel-head" role="button" tabindex="0" aria-expanded="false">
+          <span class="panel-num">${String(i + 1).padStart(2, '0')} / ${String(def.steps.length).padStart(2, '0')}</span>
+          <h2>${step.heading}</h2>
+        </div>
         <p>${step.body}</p>
         ${step.hint ? `<p class="panel-hint">${step.hint}</p>` : ''}
       </div>
     `;
     stepsEl.appendChild(section);
+
+    // tap the caption bar to reveal the full copy (mobile only in effect — the
+    // desktop panel is never collapsed, so the class does nothing there)
+    const panelEl = section.querySelector('.panel');
+    const headEl = section.querySelector('.panel-head');
+    const toggle = () => {
+      const open = panelEl.classList.toggle('expanded');
+      headEl.setAttribute('aria-expanded', String(open));
+    };
+    headEl.addEventListener('click', toggle);
+    headEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle();
+      }
+    });
 
     const dot = document.createElement('button');
     dot.className = 'rail-dot';
@@ -106,10 +128,13 @@ export function mountExplainer(def, container) {
   // a subject is worse than a little dead space, and only 2 of 36 explainers
   // have been sampled, so this keeps ~8% in hand for the untested ones.
   const SUBJECT_W = 0.54;
-  // Fraction of the viewport height the bottom sheet covers. Must stay in step
-  // with .panel's max-height in the mobile CSS — if the sheet grows and this
-  // doesn't, models start hiding behind it again.
-  const SHEET_FRAC = 0.34;
+  // Fraction of the viewport height the collapsed caption bar covers. Must stay
+  // in step with .panel's collapsed max-height in the mobile CSS — if the bar
+  // grows and this doesn't, models start hiding behind it again. The EXPANDED
+  // panel is deliberately not accounted for: it's a transient, user-initiated
+  // state, and reframing the camera on every tap would be worse than the
+  // overlap it avoids.
+  const SHEET_FRAC = 0.09;
 
   function frameForViewport({ position, target }) {
     const cam = stage.camera;
@@ -163,7 +188,12 @@ export function mountExplainer(def, container) {
     const rt = stepRuntimes[i];
 
     if (prev) {
-      prev.section.querySelector('.panel').classList.remove('active');
+      const prevPanel = prev.section.querySelector('.panel');
+      prevPanel.classList.remove('active');
+      // leaving a step re-collapses its caption, so every step is entered in
+      // the same state and an expanded panel never lingers over the next model
+      prevPanel.classList.remove('expanded');
+      prev.section.querySelector('.panel-head')?.setAttribute('aria-expanded', 'false');
       prev.dot.classList.remove('active');
       if (prev.mode === 'loop') prev.tl?.pause();
     }
@@ -190,7 +220,11 @@ export function mountExplainer(def, container) {
     // explained — data-driven, cleared automatically on steps with no `focus`
     setFocusCallouts(stage.scene, step.focus);
 
-    animate(rt.section.querySelectorAll('.panel > *'), {
+    // NB: not '.panel > *' — that now matches .panel-head, which is
+    // `display: contents` on desktop and so generates no box for opacity to
+    // apply to; the number and heading would simply never fade in. Target the
+    // leaf elements (same four nodes, same stagger as before).
+    animate(rt.section.querySelectorAll('.panel-num, .panel h2, .panel p'), {
       opacity: [0, 1],
       translateY: [18, 0],
       duration: 550,
@@ -198,6 +232,23 @@ export function mountExplainer(def, container) {
       delay: stagger(70),
     });
   }
+
+  // --- scroll-aware caption: the mobile pill dims and drops while the page is
+  // moving, then rises back once it settles (see .player.is-scrolling in the
+  // CSS). Purely a class toggle — no layout work per scroll event — and it has
+  // no effect on desktop, where that rule doesn't exist.
+  const playerEl = container.querySelector('.player');
+  let scrollIdle = 0;
+  const onScroll = () => {
+    playerEl.classList.add('is-scrolling');
+    clearTimeout(scrollIdle);
+    scrollIdle = setTimeout(() => playerEl.classList.remove('is-scrolling'), 420);
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  cleanups.push(() => {
+    window.removeEventListener('scroll', onScroll);
+    clearTimeout(scrollIdle);
+  });
 
   const observer = new IntersectionObserver(
     (entries) => {

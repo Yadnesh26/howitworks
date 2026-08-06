@@ -643,6 +643,13 @@ code {
     0 0 32px -12px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
+/* Groups the number + heading so mobile can collapse the panel down to that
+   one row. `contents` means no box is generated, so the desktop panel lays out
+   exactly as it did before this wrapper existed. */
+.panel-head {
+  display: contents;
+}
+
 .panel-num {
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
@@ -691,38 +698,134 @@ code {
     padding: 0;
   }
 
+  /* A caption welded across the bottom edge read as a docked toolbar. This is
+     a FLOATING pill instead: detached from every edge, only as wide as its
+     title, and it moves — rising into place when a step activates, dropping
+     back and dimming while you scroll so the model is never fighting a static
+     slab for attention. Tap expands it into a full-width rounded card. */
   .panel {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    max-height: 34svh; /* keep in step with SHEET_FRAC in player.js */
-    overflow-y: auto;
-    overscroll-behavior-y: auto; /* long copy scrolls, then hands back to the page */
-    padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
-    border-radius: var(--r-lg) var(--r-lg) 0 0;
-    border-left: 0;
-    border-right: 0;
-    border-bottom: 0;
+    left: 50%;
+    right: auto;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    width: max-content;
+    max-width: calc(100vw - 28px);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    /* clipped to the head row until expanded; keep in step with SHEET_FRAC */
+    max-height: 46px;
+    overflow: hidden;
+    padding: 12px 18px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-pill);
+    background: rgba(14, 16, 22, 0.72);
+    backdrop-filter: blur(14px);
+    box-shadow: var(--shadow-card);
     opacity: 0;
     pointer-events: none;
+    /* translateX(-50%) is the centring, NOT an animation — every transform
+       below must carry it or the pill jumps half its width sideways */
+    transform: translateX(-50%) translateY(14px);
+    transition: max-height var(--dur-mid) var(--ease-out),
+      opacity var(--dur-mid) var(--ease-out),
+      transform var(--dur-mid) var(--ease-out),
+      width var(--dur-mid) var(--ease-out),
+      border-radius var(--dur-mid) var(--ease-out);
   }
 
-  /* only the active step's sheet is visible — the rest are stacked underneath */
+  /* only the active step's caption is visible — the rest stack underneath */
   .panel.active {
     opacity: 1;
     pointer-events: auto;
+    transform: translateX(-50%) translateY(0); /* rises into place */
+  }
+
+  /* while the page is moving, get out of the way — the reader is navigating,
+     not reading. Never applies to an expanded panel: they opened that on
+     purpose, and yanking it away mid-sentence would be hostile. */
+  .player.is-scrolling .panel.active:not(.expanded) {
+    opacity: 0.28;
+    transform: translateX(-50%) translateY(14px);
+  }
+
+  .panel.expanded {
+    width: calc(100vw - 20px);
+    max-width: none;
+    max-height: 62svh;
+    border-radius: var(--r-lg);
+    padding: 16px 18px;
+    overflow-y: auto;
+    overscroll-behavior-y: auto; /* long copy scrolls, then hands back to the page */
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* chevron: up = "there's more", down = "collapse" */
+  .panel-head::after {
+    content: '';
+    flex: none;
+    margin-left: auto;
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid var(--accent);
+    border-top: 1.5px solid var(--accent);
+    transform: rotate(-45deg);
+    transition: transform var(--dur-mid) var(--ease-out);
+  }
+
+  .panel.expanded .panel-head::after {
+    transform: rotate(135deg);
+  }
+
+  .panel-num {
+    flex: none;
   }
 
   .panel h2 {
-    font-size: 20px;
-    margin: 6px 0 8px;
+    font-size: 15px;
+    font-weight: 500;
+    margin: 0;
+    /* the collapsed bar is one line — long headings ellipsize rather than wrap
+       and push the panel taller than SHEET_FRAC assumes */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .panel.expanded h2 {
+    white-space: normal;
+    overflow: visible;
+    font-size: 19px;
+    font-weight: 600;
   }
 
   .panel p {
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.65;
+  }
+
+  /* `display: none`, not `visibility: hidden`: a hidden-but-present paragraph
+     still contributes its own max-content width to the parent, which pinned the
+     collapsed pill at max-width instead of letting it hug its title. Taking the
+     copy out of layout entirely is also what lets the pill size to its content.
+     Note this deliberately avoids `opacity` — the step-entrance animation
+     writes an INLINE opacity on these paragraphs, which would beat any class
+     rule here. */
+  .panel:not(.expanded) p {
+    display: none;
+  }
+
+  .panel.expanded p {
+    display: block;
   }
 
   /* A 17px nowrap pill like "Cylinder barrel" is ~190px — half a phone screen,
