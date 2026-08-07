@@ -1,5 +1,9 @@
 import '@fontsource-variable/space-grotesk';
 import '@fontsource-variable/jetbrains-mono';
+// `standard` carries BOTH axes — the library's display type uses the width
+// axis (condensed for the hero, expanded for category nameplates), and the
+// default `index.css` ships weight only.
+import '@fontsource-variable/archivo/standard.css';
 import './style.css';
 import { engine as animeEngine } from 'animejs';
 import { loadExplainer, mountExplainer } from './framework/index.js';

@@ -222,9 +222,20 @@ the existing `brushedMap`/`grimeMap` style):
   bright metal FIRST (before enabling DOF) is what made this safe; enabling
   DOF on a scene with an unresolved specular hotspot would very likely have
   reproduced the pistol gotcha.
-- **Grain + vignette** [CANDIDATE]: tiny ShaderPass before OutputPass —
-  grain amplitude ~0.02, vignette darkening ~0.25 at corners. Cheap, makes
-  frames feel filmed; same opt-in route as DOF.
+- **Vignette** [VALIDATED — black-hole (2026-08-07)]: darkening the corners is
+  the cheapest "this was framed, not screenshotted" win available, and it costs
+  nothing measurable. Implemented NOT as a ShaderPass but inside the explainer's
+  own full-frame shader, which kept it entirely local — no framework change, no
+  opt-in flag, no effect on any other explainer:
+  `vec2 q = gl_FragCoord.xy / uRes - 0.5;`
+  `col *= 1.0 - 0.4 * smoothstep(0.24, 0.8, length(q));`
+  with `uRes` refreshed from `renderer.getDrawingBufferSize()` in the mesh's
+  `onBeforeRender` so it survives resize. Apply AFTER any highlight rolloff —
+  it then buys back clipping headroom rather than spending it (this pass raised
+  the HDR ceiling 2.6 -> 2.9 for more bloom AND stayed at 0 clipped px). Only
+  viable when one object covers the whole frame; anything drawn on top of it
+  (callout rings here) is not vignetted, which is fine if that content sits
+  near frame centre. Grain remains untested.
 - **Per-step light dressing** [CANDIDATE]: expose a
   `setLightMood({keyIntensity, rimColor})`-style stage handle so a "hot"
   step (combustion, compressor) can warm the rim light. Snap it in onEnter
@@ -258,6 +269,24 @@ edges).
   at u=0 against u=1-epsilon yourself. Apply a curtain/shutter settle to the
   moving SLATS only, never to the scalar that also drives an exposure or flow
   fraction, or the derived quantity flickers.
+- **Decoupled tempo clocks** [VALIDATED — black-hole (2026-08-07)]: when one
+  scene mixes things that move at genuinely different speeds, do NOT compromise
+  on a single lap rate. Slowing the black hole's disk 5x (30-44s laps, against
+  the library's usual 3-8s) would also have frozen the test-ray packets and the
+  infalling probe into looking broken. Fix: keep the lap scalar for the slow
+  subject and run the fast overlays on `fract(phase * AUX_CYCLES)` with an
+  INTEGER multiplier — whole cycles per lap, so seamlessness is free and needs
+  no extra reasoning. Pick the multiplier so it does not alias with the probe
+  scripts: verify.mjs samples the lap at 20%/70% and review-shots at 30%/60%,
+  and a multiple of 2 makes both pairs land on the SAME aux phase, so genuinely
+  moving overlays get reported as static and captured twice identically. 5 is
+  clean for both; 6 is not.
+- **Prove the wrap with pixels, not reasoning** [VALIDATED — black-hole
+  (2026-08-07)]: verify.mjs samples 20% vs 70% and structurally cannot see a
+  loop that jumps at the WRAP. After any change to periodic motion, render
+  phase 0 against phase 1-1e-6 and diff the framebuffer — mean abs delta should
+  be ~0/255 (measured 0.0002 across a 1280x800 frame). Takes one throwaway
+  Playwright script and is the only real evidence the loop contract holds.
 - **Camera moves with intent**: push in by dollying the camera, never by
   animating FOV; track parallel to a flow being explained (fluid path, sliding
   piston) so the viewer reads the spatial route; put the point of interest on a
@@ -275,6 +304,29 @@ meaningless there. Measure explicit render cost instead, which works fine:
   for (let i = 0; i < 30; i++) s.composer.render();
   return (performance.now() - t0) / 30; })()
 ```
+
+CRITICAL (learned the hard way, black-hole 2026-08-07): `composer.render()`
+only QUEUES GPU work, so timing it alone can be off by three orders of
+magnitude — the loop above reported 0.2-5 ms/frame on a scene that actually
+took ~2 s/frame, and the giveaway was that the "fast" run took 300 s of wall
+clock. Force a flush inside the timed region and the number becomes real:
+
+```js
+const gl = s.renderer.getContext(); const px = new Uint8Array(4);
+const t0 = performance.now();
+s.composer.render();
+gl.readPixels(640, 400, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); // blocks
+const ms = performance.now() - t0;
+```
+
+Also note `renderer.info` resets on every internal pass, so reading it after
+`composer.render()` reports the final fullscreen quad (1 call, 1 triangle), not
+the scene. Set `renderer.info.autoReset = false` and reset manually, or read it
+straight after a plain `renderer.render(scene, camera)`.
+
+For a heavy fragment shader (a raymarcher), the symptom of being too slow is
+that `page.screenshot()` starts timing out at 30 s — review-shots and
+verify.mjs stop working before a human notices a framerate problem.
 
 Warm EVERY step before timing anything (activate each, render ~10 frames).
 Shader compilation happens on a material's first render, so whichever step you

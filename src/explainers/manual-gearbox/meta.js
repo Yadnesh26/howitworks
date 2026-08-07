@@ -6,5 +6,9 @@ export default {
   summary:
     'Five speeds, three shafts and a brass ring that kisses gears up to speed — how a stick-shift trades engine revs for wheel torque.',
   accent: '#ffc46b',
+  // one-line teardown for the library card
+  spec: '3 shafts · 5 ratios · brass synchro rings',
+  // part names, so search finds this machine by what is inside it
+  keywords: 'synchro synchroniser dog clutch layshaft selector fork stick shift transmission',
   categories: ['vehicles'],
 };

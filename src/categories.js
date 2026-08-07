@@ -34,6 +34,11 @@ export const categories = {
     blurb: 'How voices, signals and data race across the world in milliseconds.',
     accent: '#6ec8ff',
   },
+  space: {
+    title: 'Space & the Cosmos',
+    blurb: 'Machines you can never open, running on physics you can only watch.',
+    accent: '#ffb454',
+  },
 };
 
 export function isCategory(id) {
