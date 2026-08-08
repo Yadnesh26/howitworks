@@ -2,11 +2,14 @@
 // steps: 0 hero · 1 horizon · 2 shadow-vs-hole · 3 photon sphere · 4 ISCO
 //        5 why it glows · 6 Doppler beaming · 7 time dilation · 8 finale
 //
-// STORY LENS: not "how black holes work" (saturated beyond saving) but "the
-// famous picture is not what you think it is." The dark circle is 2.6x wider
-// than the hole, and the ring lying across the top is the disk's FAR side
-// bent into view. That is a genuinely counterintuitive claim about an image
-// almost everyone has already seen, which is the whole opening.
+// STORY LENS (revised 2026-08-08): the first cut opened on "that black circle
+// isn't the black hole" before ever saying what a black hole IS — a gotcha
+// with no definition under it. Per feedback, the video now matches the site's
+// own title ("What Is a Black Hole?"): shot 1 answers the question straight
+// (gravity trap, light can't escape), shot 2 names the event horizon, and
+// ONLY THEN pivots into the same "none of this is the hole" twist, which is
+// still the best hook in the material but now lands on a defined term instead
+// of a cold "circle."
 //
 // SCRIPTING: one flowing voiceover per format. make-narration.mjs synthesizes
 // each in a single ElevenLabs take and the exporter paces the picture to the
@@ -14,9 +17,10 @@
 // Captions are the verbatim voice rail, so the hook has to live in shot 1's
 // first spoken sentence, which it does.
 //
-// The loop: planted in shot 2 ("none of that picture is the hole") and closed
-// word-for-word in the button ("You never see the hole. Only what escaped."),
-// which also re-arms the hook when the short replays.
+// The loop: planted in shot 2 ("nothing you're looking at is actually inside
+// that horizon") and closed word-for-word in the button ("You never see the
+// hole. Only what escaped."), which also re-arms the hook when the short
+// replays.
 //
 // No em/en dashes in any narration line — ElevenLabs renders them as dead air
 // the speed knob cannot compress. Numbers are spelled the way they should be
@@ -30,23 +34,23 @@
 export default {
   // Legacy-only card (burns only if words.json is missing). In sync with
   // shot 1's opening line.
-  hook: 'That black circle\nisn\'t the black hole.',
+  hook: 'A black hole is a trap\neven light can\'t escape.',
 
   // Consumed by scripts/make-postkit.mjs. Authored here with the script rather
   // than improvised at posting time, so the packaging promise and the hook say
   // the same thing — the video is judged against whatever the title set up.
   platforms: {
     youtube: {
-      title: 'The Dark Circle Is Not the Black Hole',
+      title: 'What Is a Black Hole, Really?',
       description: [
-        'Everyone has seen the picture. Almost nobody has been told what it actually shows.',
+        'A black hole is a place where gravity has grown so strong that nothing, not even light, can climb back out. That boundary is the event horizon, and it explains everything else in this video, including the famous picture almost everyone has already seen.',
         '',
-        'The dark circle is not the event horizon. It is 2.6 times wider, because rays that would have missed the hole still get bent hard enough to fall in, so a whole region of sky behind it goes dark. The ring lying across the top is the disk\'s far side, lensed up and over.',
+        'The dark circle in that picture is not the event horizon. It is 2.6 times wider, because rays that would have missed the hole still get bent hard enough to fall in, so a whole region of sky behind it goes dark. The ring lying across the top is the disk\'s far side, lensed up and over.',
         '',
         'Everything in this video is computed rather than animated: each pixel traces a light ray backwards through curved spacetime, so the shadow, the photon ring, the lensed arcs and the Doppler asymmetry all fall out of the same equation.',
         '',
         'Chapters:',
-        '0:00 None of that picture is the hole',
+        '0:00 What a black hole actually is',
         '0:15 The event horizon is a distance, not a surface',
         '0:30 Why the darkness is 2.6x too big',
         '0:45 Where light can go into orbit',
@@ -69,39 +73,40 @@ export default {
       ],
     },
     shorts: {
-      title: "That black circle isn't the black hole",
+      title: 'What is a black hole, actually?',
       hashtags: ['#blackhole', '#space', '#physics', '#astronomy', '#science'],
     },
   },
 
-  // 9:16 — ~86s at ~2.3 words/sec (197 words), matching the shipped length of
-  // the induction-cooktop short. Spine: hook -> stakes+loop -> question ->
-  // BUT/THEREFORE mechanism -> re-hook -> isolated stat -> so-what -> button.
+  // 9:16 — ~90s at ~2.3 words/sec (~207 words). Spine: hook = the actual
+  // definition -> name the event horizon -> re-hook (the twist: nothing you
+  // see is inside it) -> spoken question -> BUT/THEREFORE mechanism ->
+  // isolated stat -> so-what -> button.
   short: {
     shots: [
       {
-        // Zone 1 — hook: the boldest true sentence, word one, over the hero
+        // Zone 1 — hook: answer the title's question directly, word one
         step: 0,
         dolly: 2.0,
         labels: [],
         narration:
-          "That black circle isn't the black hole. The hole is less than half that wide.",
+          "A black hole is a place where gravity is so strong that nothing can climb back out, not even light.",
       },
       {
-        // Zone 2+3 — stakes, the planted loop, then the spoken question
+        // Zone 2+3 — define the boundary, plant the loop, spoken question
         step: 0,
         dolly: 2.0,
         labels: [],
         narration:
-          "A black hole gives off nothing, so none of that picture is the hole. Every bit of it is light that couldn't travel straight. What are you actually looking at?",
+          "The edge of that trap is called the event horizon. Cross it, and you're not coming back. But here's the strange part. Nothing you're looking at is inside that horizon. So what is all of this light?",
       },
       {
-        // Zone 4a — the mechanism, stated as curvature rather than as a pull
+        // Zone 4a — THEREFORE: the answer, stated as curvature rather than a pull
         step: 3,
         dolly: 1.8,
         labels: ['Photon sphere · 1.5 Rs'],
         narration:
-          "Gravity this strong doesn't pull light off course. It bends the course itself. Aim a ray to miss, and it still swings around.",
+          "Because everything here is light that bent around the hole and kept going. Gravity this strong doesn't pull light off course, it bends the course itself.",
       },
       {
         // Zone 4b — the beat that makes the shadow inevitable
@@ -109,23 +114,23 @@ export default {
         dolly: 1.8,
         labels: ['Loops — then escapes'],
         narration:
-          'Aim closer and it loops the hole completely, then leaves in a direction it was never pointed.',
+          'Aim a ray close enough and it loops the hole completely, then leaves pointed somewhere it was never aimed.',
       },
       {
-        // Zone 4c — THEREFORE: the dark circle, and the number behind it
+        // Zone 4c — the dark circle, and the number behind it
         step: 2,
         dolly: 1.6,
         labels: ['The hole · 1 Rs', 'What you see · 5.2 Rs'],
         narration:
-          'So rays that should have missed fall in instead. A patch of sky behind it goes dark, two point six times wider than the hole.',
+          "That's why the dark circle isn't the horizon either. It's two point six times wider, because rays that should have missed get bent enough to fall in.",
       },
       {
-        // Zone 4d — BUT connective + re-hook: the glow is not the hole either
+        // Zone 4d — BUT connective: the glow is not the hole either
         step: 5,
         dolly: 1.4,
         labels: ['Accretion disk'],
         narration:
-          "But the glow isn't the hole either. It's gas, torn into a disk, orbiting so fast that friction alone heats it to millions of degrees.",
+          "The glow isn't the hole burning. It's gas swirling into a disk so fast that friction alone heats it to millions of degrees.",
       },
       {
         // Zone 5 — the stat, isolated on its own beat
@@ -133,7 +138,7 @@ export default {
         dolly: 1.4,
         labels: [],
         narration:
-          "Here's the number that gets me. Falling in turns up to forty percent of matter straight into light. Fusion, the thing running the Sun, manages zero point seven.",
+          "Here's the number that gets me. Falling in turns up to forty percent of that matter straight into light. Fusion, the thing powering the Sun, only manages zero point seven.",
       },
       {
         // Zone 6 — so-what: the myth everybody actually carries around
@@ -141,7 +146,7 @@ export default {
         dolly: 1.1,
         labels: [],
         narration:
-          "But it still doesn't suck anything in. Swap the Sun for a black hole of the same mass, and Earth keeps its orbit, on time, in the dark.",
+          "But it doesn't suck anything in. Swap the Sun for a black hole of the same mass, and Earth keeps its orbit, on time, in the dark.",
       },
       {
         // Zone 7 — button: 8 words, closes the loop, re-arms the hook on replay
@@ -159,17 +164,17 @@ export default {
   long: {
     shots: [
       {
-        // 1 — hook + the premise the whole video rests on
+        // 1 — hook: answer the title's question directly, word one
         step: 0,
         narration:
-          "You have almost certainly seen a picture like this one. Almost none of it is the black hole. A black hole gives off no light at all, so what you are looking at is light from somewhere else, bent on the way to you.",
+          "A black hole is a place where gravity has grown so strong that nothing can climb back out, not even light. You have almost certainly seen a picture of one. Almost none of that picture is the black hole itself.",
       },
       {
         // 2 — the horizon: a distance, not a thing
         step: 1,
         labels: ['Event horizon · 1 Rs', 'Escape speed = c'],
         narration:
-          "Start with the hole itself. There's no surface at the event horizon. It's the distance where the escape speed reaches the speed of light, so anything closer is already committed.",
+          "The edge of that trap is called the event horizon, and there's no surface there. It's the distance where the escape speed reaches the speed of light, so anything closer is already committed.",
       },
       {
         // 3 — BUT: the darkness is not the horizon

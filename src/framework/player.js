@@ -13,6 +13,14 @@ import { setFocusCallouts } from './highlight.js';
 // crossing the middle of the viewport "activates" the step (camera fly-to,
 // progress rail, panel highlight).
 export function mountExplainer(def, container) {
+  // Series kicker above the title. Almost everything in the library is a
+  // machine and reads "how it works", but subjects that aren't machines are
+  // titled "What Is a Black Hole?" instead, and stamping "how it works" over
+  // that reproduces the exact category error the title avoids. Keyed on the
+  // title's own form so it stays a general rule, not a per-explainer special
+  // case.
+  const kicker = /^what\b/i.test(def.title ?? '') ? 'what it is' : 'how it works';
+
   container.innerHTML = `
     <div class="player" style="--accent:${def.accent ?? '#6ea8ff'}">
       <div class="canvas-holder"></div>
@@ -20,7 +28,7 @@ export function mountExplainer(def, container) {
       <div class="rail"></div>
       <div class="scroll-hint">scroll<span>▾</span></div>
       <header class="player-hero">
-        <p class="hero-kicker">how it works</p>
+        <p class="hero-kicker">${kicker}</p>
         <h1>${def.title}</h1>
         <p class="hero-summary">${def.summary ?? ''}</p>
       </header>

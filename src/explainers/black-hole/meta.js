@@ -2,7 +2,12 @@
 // index.js/model.js only load when someone opens this explainer.
 export default {
   id: 'black-hole',
-  title: 'How a Black Hole Works',
+  // Not "How a Black Hole Works": a black hole is not a machine with a
+  // mechanism you could operate, and the library's usual how-it-works framing
+  // reads as a category error on it. It is also how people actually search for
+  // this one. shortTitle() and the export's compactTitle() both strip this
+  // form too, so the card still reads "Black Hole".
+  title: 'What Is a Black Hole?',
   summary:
     'The dark circle is not the hole — it is 2.6 times wider than the hole, because the hole bends the paths of the light behind it. Everything you can see of a black hole is the last thing that got away.',
   accent: '#ffb454',

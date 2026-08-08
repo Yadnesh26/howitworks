@@ -42,7 +42,13 @@ const esc = (s = '') =>
   String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 // Titles read "How a Jet Engine Works" for SEO; the card wants the noun.
-const shortTitle = (t) => t.replace(/^How (a |an |the )?/i, '').replace(/ works?$/i, '');
+// Also handles "What Is a Black Hole?" — subjects that aren't machines get
+// that framing instead, and the card still wants the bare noun.
+const shortTitle = (t) =>
+  t
+    .replace(/^(?:How|What)\s+(?:is\s+|are\s+)?(?:a\s+|an\s+|the\s+)?/i, '')
+    .replace(/\s*works?$/i, '')
+    .replace(/\?$/, '');
 
 function socialDock() {
   return SOCIALS.map(

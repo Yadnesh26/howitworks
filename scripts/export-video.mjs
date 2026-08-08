@@ -65,10 +65,13 @@ if (existsSync(videoJsPath)) {
 // compacted for screen: "How a Refrigerator Works" -> "REFRIGERATOR". A short
 // series-brand word reads at a glance; the full sentence does not. video.js can
 // override with `titleCard` when the derived form is wrong.
+// Also strips the "What Is a Black Hole?" form, used by subjects that aren't
+// machines — same intent, and the title card still wants just "BLACK HOLE".
 const compactTitle = (t) =>
   t
-    .replace(/^how\s+(?:(?:a|an|the)\s+)?/i, '')
+    .replace(/^(?:how|what)\s+(?:is\s+|are\s+)?(?:(?:a|an|the)\s+)?/i, '')
     .replace(/\s+works?[.!]?$/i, '')
+    .replace(/\?$/, '')
     .trim();
 let metaTitle = null;
 const metaPath = resolve(`src/explainers/${id}/meta.js`);
