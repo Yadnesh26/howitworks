@@ -28,10 +28,12 @@ are won or lost.** Spend your effort there.
    video.js` against the date the skills last changed, or just read it and
    judge — rewrite it through `video-scripting` first. Do not render a stale
    script just because a file happens to be sitting there.
-3. **Ask about captions too, and name the real stakes.** `--captions` now
-   also gates the title card and end card (see "Captions" below) — declining
-   captions means fully clean, unbranded footage, not just no on-screen
-   text. Say that when you ask, don't just ask "captions y/n" in isolation.
+3. **Ask about captions too, and name the real stakes.** `--captions` also
+   gates the title card (see "Captions" below) — declining captions means
+   fully clean, unbranded footage, not just no on-screen text. Say that when
+   you ask, don't just ask "captions y/n" in isolation. The END card is a
+   separate, opt-in decision (`--endcard`) — never fold it into the captions
+   question and never pass it unasked; see Step 3.
 
 ## Pipeline overview
 
@@ -40,10 +42,10 @@ are won or lost.** Spend your effort there.
    ElevenLabs TTS (needs `ELEVENLABS_API_KEY` in `.env`; the script loads it
    itself). Falls back to free Edge TTS if the key is unset/fails.
 3. `node scripts/export-video.mjs <id> --format short|long [--captions]` —
-   deterministic frame render + ffmpeg. `--captions` is the ONE flag that also
-   gates the title card and end card (see "Captions" below for whether to
-   pass it) — this is a manual, ask-first workflow, unlike the fully
-   unattended `explainer-to-video` pipeline, which always passes `--captions`
+   deterministic frame render + ffmpeg. `--captions` also gates the title
+   card (see "Captions" below for whether to pass it); the end card is
+   separately opt-in via `--endcard` — this is a manual, ask-first workflow,
+   unlike the fully unattended `explainer-to-video` pipeline, which always passes `--captions`
    because no one's there to ask.
 4. Review the output frames, fix, re-render
 5. `node scripts/make-thumbnails.mjs <id>` — 16:9 cover plates (long-form)
@@ -182,8 +184,8 @@ with `--no-trim-pauses` if a take ever sounds too clipped/rushed.
 The standing default is narration-only, clean footage — don't burn captions
 unless the user asked for them (or the platform/context makes it obvious,
 e.g. "make me a TikTok"). **This is now a bigger decision than just
-captions**: `--captions` is also the one flag that gates the title card and
-end card (see Step 3), because all three burn in the same libass pass to
+captions**: `--captions` is also the flag that gates the title card (see
+Step 3), because both burn in the same libass pass to
 avoid a second re-encode. Skipping it means a fully clean loop with no
 branding at all, not just no on-screen text — say so when you ask, so the
 user is choosing the actual trade-off. When captions are wanted, pass
@@ -214,19 +216,25 @@ node scripts/export-video.mjs <id> --format long  --fps 30 [--captions]
 Smoke-test new editorial at `--fps 10` first (renders ~3x faster) before
 committing to a 30fps run.
 
-**Overlays ride the caption pass.** Captions, the title card and the end card
-are burned in ONE libass pass (each burn is a full re-encode, so they must not
-cost extra passes). Consequence: no `--captions`, no overlays at all.
+**Overlays ride the caption pass.** Captions, the title card and (when opted
+into) the end card are burned in ONE libass pass (each burn is a full
+re-encode, so they must not cost extra passes). Consequence: no `--captions`,
+no overlays at all — and no `--endcard`, no end card even with captions on.
 
 - **Title card** — the explainer name, top-center, first 5 seconds, then it
   clears so nothing competes with the mechanism and it cannot collide with the
   CSS2D callouts floating mid-frame. The name is derived from `meta.js`
   ("How a Refrigerator Works" → "REFRIGERATOR"); set `titleCard` in video.js
   only when that derivation is wrong. Disable with `--no-title`.
-- **End card** — the closing share/funnel beat over the tail. It is scheduled
-  AFTER the last spoken caption wherever the tail allows, so it never fights
-  the voice rail. Override the copy with `endCard` (`\n` splits lines);
-  disable with `--no-endcard`.
+- **End card** — the closing share/funnel beat over the tail. **OPT-IN: pass
+  `--endcard`, or set `endCard` in video.js.** It does NOT ride `--captions`
+  the way the title card does. An end card is an outward-facing promise (the
+  short's default copy points viewers at a YouTube long-form), so it is never
+  a side effect of wanting captions — only burn one when the user asked for
+  it and the thing it promises actually exists. It is scheduled AFTER the
+  last spoken caption wherever the tail allows, so it never fights the voice
+  rail. Override the copy with `endCard` (`\n` splits lines); `--no-endcard`
+  force-disables even an `endCard` set in video.js.
 - **Loudness** — the final mix is normalized to ~-14 LUFS (`loudnorm`). Do not
   remove this: an un-normalized export sounds thin next to the normalized feed
   around it, which reads as amateur before a word is understood.

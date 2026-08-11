@@ -15,6 +15,12 @@ pids
 # Dependency directories
 node_modules/
 
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*~
+
 # Mac / Windows OS files
 .DS_Store
 .AppleDouble
@@ -30,6 +36,9 @@ dist/
 dist-ssr/
 *.local
 
+# Local machine settings (shared .claude/settings.json stays tracked)
+.claude/settings.local.json
+
 # Env files
 .env
 .env.local
@@ -43,12 +52,21 @@ playwright-report/
 blob-report/
 playwright/.cache/
 
-# Project specific
+# Project specific — generated capture / render output
 review-shots/
+scratch-shots/
+scratch-frames/
+.review/
 renders/
 renders-smoke/
+
+# Reference material + archives (not source)
 logo/
 mixer/
 *.7z
-scratch-frames/
+*.zip
+
+# Ad-hoc Playwright probes (CLAUDE.md: name them *.tmp.mjs, delete when done)
+scripts/*.tmp.mjs
+
 assets/sfx/breaker-slam.mp3

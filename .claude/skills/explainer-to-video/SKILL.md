@@ -147,7 +147,10 @@ later, cold, is how they end up generic:
 - `platforms.shorts` — `{ title, hashtags: [] }`
 - `titleCard` — ONLY if the name derived from `meta.js` is wrong. The exporter
   turns "How a Refrigerator Works" into "REFRIGERATOR" automatically.
-- `endCard` — ONLY to override the default share/funnel line.
+- `endCard` — omit it. Setting it ENABLES an end card (it is opt-in, not a
+  default), and this pipeline runs unattended, so nobody has asked for one.
+  Only set it when the user explicitly requested an end-card CTA and the
+  thing it promises actually exists.
 
 The YouTube title is a different job from the script's hook: the hook is heard
 after the click, the title has to earn the click. Don't paste one into the other.
@@ -191,10 +194,10 @@ crops the sides — fix with `dolly`), visible motion in every shot (frozen loop
 have shipped from this repo before), and narration not overrunning its shot.
 Fix in `video.js`, re-render the affected format.
 
-Also confirm the overlays landed: the explainer name holds top-center for the
-first 5 seconds and then clears, and the end card lands at the tail without
-colliding with the last spoken caption. Both are burned in the same pass as the
-captions — if captions are missing, so are these.
+Also confirm the overlay landed: the explainer name holds top-center for the
+first 5 seconds and then clears. It is burned in the same pass as the captions
+— if captions are missing, so is it. There should be NO end card unless one
+was explicitly requested (see the `endCard` note above).
 
 ### Stage 9 — Thumbnails (long-form)
 

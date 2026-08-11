@@ -124,8 +124,14 @@ export function createStage(container, options = {}) {
   container.appendChild(labelRenderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = makeBackdrop();
-  scene.fog = new THREE.Fog(0x0a0b0f, 16, 36); // matches the backdrop's dark edge
+  // `space: true` is for explainers whose subject has no ground and no scale
+  // prop — an astronomical body painting its own sky. The studio sweep, the
+  // shadow floor and the contact shadow all become artefacts there: a dark
+  // smudge hanging in a starfield reads as a rendering bug, not as staging.
+  // Everything else about the rig (env light, bloom, AO) stays exactly as is.
+  const space = !!options.space;
+  scene.background = space ? null : makeBackdrop();
+  if (!space) scene.fog = new THREE.Fog(0x0a0b0f, 16, 36); // matches the backdrop's dark edge
 
   // Synthetic rig applies instantly so the first frame is never unlit; the
   // real photographed studio HDRI (Poly Haven, CC0) replaces it as soon as it
@@ -224,6 +230,7 @@ export function createStage(container, options = {}) {
   );
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
+  floor.visible = !space;
   scene.add(floor);
 
   // soft radial contact shadow under the model — grounds it beyond what the
@@ -249,6 +256,7 @@ export function createStage(container, options = {}) {
   );
   contact.rotation.x = -Math.PI / 2;
   contact.position.y = 0.002;
+  contact.visible = !space;
   scene.add(contact);
 
   // --- post-processing: AO grounds the parts, bloom lets emissives glow ----
@@ -322,7 +330,7 @@ export function createStage(container, options = {}) {
     labelRenderer.render(scene, camera);
     // after the CSS2D pass has positioned every pill, nudge overlapping ones
     // apart so labels never collide (see label-layout.js)
-    declutterCallouts(scene);
+    declutterCallouts(scene, camera);
   });
 
   return {

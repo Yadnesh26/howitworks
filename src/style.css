@@ -55,6 +55,56 @@
   --dur-fast: 0.22s;
   --dur-mid: 0.4s;
   --dur-slow: 0.9s;
+
+  /* --- library surfaces --------------------------------------------------
+     Every value below is lifted from framework/parts.js — the same material
+     presets the 3D models are built from, so the page and the machines it
+     indexes are made of the same stock.
+
+       polymer / rubber / studioPlinth → the matte black body
+       aluminum / brushedSteel / chrome → every readable surface
+       heatBluedSteel  → the accent, which is a TEMPERATURE rather than a hue
+       opticalGlass    → focus rings (that AR-coating bloom)                */
+  --polymer: #0e1014; /* studioPlinth, deepened — the ground */
+  --polymer-2: #1b1f25; /* materials.polymer — raised panel */
+  --rubber: #08090b; /* materials.rubber, darkened — recessed well */
+  --dark-metal: #3a3f47; /* materials.darkMetal */
+
+  --alu: #ccd3db; /* materials.aluminum */
+  --steel-t: #dde3ea; /* materials.brushedSteel — body text */
+  --chrome: #f2f5f8; /* materials.chrome — headlines, hover */
+  --alu-dim: #a2abb5;
+  --alu-faint: #79828d;
+
+  /* heatBlueMap()'s exact stops, hot → cold */
+  --heat-straw: #d7b56a;
+  --heat-gold: #e2b04a;
+  --heat-bronze: #a8683f;
+  --heat-blue: #4a6aa0;
+  --coat: #dfe9ff; /* opticalGlass tint — focus rings */
+
+  /* display type is MACHINED, not tinted: a highlight running across steel */
+  --sheen: linear-gradient(96deg, #ffffff 0%, #eef1f5 20%, #bcc4cd 50%, #ffffff 74%, #aeb7c0 100%);
+  --sheen-rule: linear-gradient(90deg, #e8ecf0, #9aa3ad 55%, transparent);
+
+  /* a milled edge catching the studio key from above. This one line is the
+     difference between an aluminium panel and a rounded rectangle. */
+  --chamfer: inset 0 1px 0 rgba(216, 221, 227, 0.13), inset 0 -1px 0 rgba(0, 0, 0, 0.62);
+  --chamfer-lit: inset 0 1px 0 rgba(216, 221, 227, 0.24), inset 0 -1px 0 rgba(0, 0, 0, 0.68);
+
+  --line-alu: rgba(198, 204, 212, 0.13);
+  --line-alu-strong: rgba(198, 204, 212, 0.28);
+
+  /* filled at runtime by home.js with the same generated grain the models use */
+  --tex-brushed: none;
+  --tex-grain: none;
+  --tex-opacity: 0.05;
+
+  --font-machine: 'Archivo Variable', 'Segoe UI', system-ui, sans-serif;
+
+  --gut: max(var(--pad-lib), calc((100% - 1200px) / 2));
+  --pad-lib: clamp(20px, 5vw, 72px);
+
 }
 
 html {
@@ -111,271 +161,902 @@ code {
   }
 }
 
-/* ================= home ================= */
+/* The library brings its own grain, scoped to the hero where the near-black
+   scrim gradient actually bands (see .hero-grain). Letting the page-wide veil
+   through as well would double it over the card plates, which reads as noise
+   on the renders rather than atmosphere. The player keeps it. */
+body:has(.home)::after {
+  display: none;
+}
+
+/* ================= home / library =================
+   The storefront for a real-time 3D library, built out of the same materials
+   the machines are: matte polymer ground, brushed aluminium surfaces,
+   heat-blued steel as the one accent. See tokens in :root above. */
 
 .home {
   position: relative;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  padding: 0 24px;
+  font-family: var(--font-machine);
+  font-variation-settings: 'wdth' 100, 'wght' 400;
+  color: var(--steel-t);
+  background: var(--polymer);
 }
 
-/* aurora: slow-drifting mesh of accent-tinted glows behind the whole library.
-   No canvas here, so it renders against --bg. pointer-events untouched (it's a
-   background layer at z -1, below the interactive grid). */
-.home::before {
-  content: '';
+.home .mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.home a { color: inherit; text-decoration: none; }
+.home :focus-visible,
+.finder :focus-visible {
+  outline: 2px solid var(--coat);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* --- masthead ----------------------------------------------------------- */
+.masthead {
   position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px var(--gut);
+  transition: background 0.45s var(--ease-out), box-shadow 0.45s var(--ease-out);
+}
+.masthead.docked {
+  background: color-mix(in srgb, var(--polymer) 86%, transparent);
+  backdrop-filter: blur(16px) saturate(1.1);
+  box-shadow: var(--chamfer);
+}
+.wordmark {
+  font-variation-settings: 'wdth' 88, 'wght' 700;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: var(--chrome);
+}
+.wordmark b { color: var(--heat-gold); font-weight: inherit; }
+.masthead nav { display: flex; align-items: center; gap: 14px; }
+.masthead nav > a.mono { color: var(--alu-dim); transition: color 0.2s; }
+.masthead nav > a.mono:hover { color: var(--chrome); }
+
+.social-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--alu-dim);
+  transition: color 0.2s;
+}
+.social-ic svg { width: 17px; height: 17px; fill: currentColor; }
+.social-ic:hover,
+.social-ic:focus-visible { color: var(--brand, var(--chrome)); }
+
+/* a recessed well, not a raised card */
+.search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--rubber);
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 10px 8px 14px;
+  color: var(--alu-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(216, 221, 227, 0.06);
+  transition: color 0.2s;
+}
+.search-trigger:hover { color: var(--steel-t); }
+.search-trigger kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: var(--polymer-2);
+  box-shadow: var(--chamfer);
+  color: var(--alu-dim);
+}
+@media (max-width: 760px) { .masthead nav .hide-sm { display: none; } }
+/* a phone has no ⌘K, so drop the shortcut and keep the affordance */
+@media (max-width: 620px) {
+  .search-trigger span,
+  .search-trigger kbd { display: none; }
+  .search-trigger { padding: 10px 12px; }
+  .search-trigger svg { width: 16px; height: 16px; }
+}
+
+/* --- hero --------------------------------------------------------------- */
+.home-hero {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  align-content: center;
+  padding: 96px var(--gut) 84px;
+  isolation: isolate;
+}
+/* A very soft pool of light behind the mechanism. The deep ground gives the
+   metal something to sit in, but it also means the darkest gears — the two
+   background ones — have nothing to be seen against. This lifts just their
+   patch of the page by a few percent, so they read as silhouettes in a room
+   rather than as holes. Centred on where the framing solver puts the train. */
+.home-hero::before {
+  content: '';
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    46% 54% at 69% 50%,
+    rgba(198, 210, 226, 0.075),
+    rgba(198, 210, 226, 0.03) 45%,
+    transparent 72%
+  );
+}
+@media (max-aspect-ratio: 1/1) {
+  .home-hero::before {
+    background: radial-gradient(
+      62% 34% at 54% 72%,
+      rgba(198, 210, 226, 0.075),
+      rgba(198, 210, 226, 0.03) 45%,
+      transparent 72%
+    );
+  }
+}
+#hero-machine {
+  position: absolute;
   inset: 0;
   z-index: -1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: pan-y; /* vertical drags still scroll the page */
+}
+/* scrim: the mechanism runs behind the copy, so the ground is carried across
+   the type side and released over the metal */
+.home-hero::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(60vw 50vh at 18% 12%, rgba(110, 168, 255, 0.16), transparent 60%),
-    radial-gradient(55vw 45vh at 85% 20%, rgba(178, 141, 255, 0.13), transparent 60%),
-    radial-gradient(70vw 55vh at 60% 100%, rgba(84, 200, 232, 0.12), transparent 62%),
-    var(--bg);
-  background-attachment: fixed;
-  animation: auroraDrift 26s var(--ease-inout) infinite alternate;
+  background: linear-gradient(
+    100deg,
+    var(--polymer) 0%,
+    var(--polymer) 28%,
+    color-mix(in srgb, var(--polymer) 62%, transparent) 43%,
+    color-mix(in srgb, var(--polymer) 30%, transparent) 54%,
+    transparent 66%
+  );
+}
+/* film grain, HERO ONLY — its one job is dithering that scrim's near-black
+   gradient, and that gradient exists nowhere else on the page */
+.hero-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: var(--tex-grain);
+  background-size: 128px 128px; /* 1 noise pixel per CSS pixel */
+  opacity: 0.024;
 }
 
-@keyframes auroraDrift {
-  0% {
-    transform: translate3d(-2%, -1%, 0) scale(1.05);
+.hero-copy { max-width: min(700px, 52vw); }
+@media (max-aspect-ratio: 1/1) {
+  .home-hero { align-content: start; padding-top: clamp(96px, 15svh, 150px); }
+  /* .ln clips overflow, so losing this cascade race would not wrap the
+     headline — it would slice the last letter off. Keep it after the base. */
+  .hero-copy { max-width: none; }
+  .home-hero::after {
+    background: linear-gradient(
+      180deg,
+      var(--polymer) 0%,
+      var(--polymer) 30%,
+      color-mix(in srgb, var(--polymer) 60%, transparent) 46%,
+      transparent 62%
+    );
   }
-  100% {
-    transform: translate3d(2%, 2%, 0) scale(1.12);
+}
+
+.hero-eyebrow {
+  color: var(--alu-dim);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: clamp(18px, 3vh, 30px);
+}
+.hero-eyebrow::after {
+  content: '';
+  height: 2px;
+  width: clamp(40px, 10vw, 120px);
+  background: var(--sheen-rule);
+  border-radius: 2px;
+}
+
+.home-hero h1,
+.cat-hero h1 {
+  margin: 0;
+  font-variation-settings: 'wdth' 70, 'wght' 800;
+  font-size: clamp(50px, 8.6vw, 130px);
+  line-height: 0.84;
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+/* each line rises out of its own slot as the mechanism assembles behind it */
+.home-hero h1 .ln {
+  display: block;
+  overflow: hidden;
+  padding-block: 0.07em;
+  margin-block: -0.07em;
+}
+.home-hero h1 .ln > i {
+  display: block;
+  font-style: normal;
+  white-space: nowrap;
+  transform: translateY(106%);
+  animation: lineUp 1s var(--ease-out) forwards;
+}
+.home-hero h1 .ln:nth-child(1) > i { animation-delay: 0.12s; }
+.home-hero h1 .ln:nth-child(2) > i { animation-delay: 0.24s; }
+.home-hero h1 .ln:nth-child(3) > i { animation-delay: 0.36s; }
+@keyframes lineUp { to { transform: translateY(0); } }
+
+/* The headline performs the product: the first lines are the engineer's
+   DRAWING — stroked line work — and the last is the machined PART, solid
+   polished metal. Drawing in, machine out. Guarded, so a browser without
+   text-stroke simply gets solid chrome. */
+@supports (-webkit-text-stroke: 1px #000) {
+  .home-hero h1 .ln > i {
+    color: transparent;
+    -webkit-text-stroke: 2.2px color-mix(in srgb, var(--alu) 84%, transparent);
+  }
+  @media (max-width: 700px) {
+    .home-hero h1 .ln > i { -webkit-text-stroke-width: 1.5px; }
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .home::before {
-    animation: none;
-  }
+.home-hero h1 em {
+  font-style: normal;
+  -webkit-text-stroke: 0;
+  background: var(--sheen);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
 }
 
-.home-hero {
-  text-align: center;
-  padding: 16vh 0 8vh;
+.hero-deck {
+  margin: clamp(22px, 3.4vh, 34px) 0 0;
+  max-width: 46ch;
+  font-size: clamp(15px, 1.25vw, 19px);
+  line-height: 1.55;
+  color: var(--alu-dim);
 }
-
-#home-title {
-  font-family: var(--font-display);
-  font-size: var(--fs-hero);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+.hero-actions {
+  margin-top: clamp(24px, 4vh, 38px);
+  display: flex;
+  align-items: center;
+  gap: 14px 22px;
+  flex-wrap: wrap;
 }
+/* the way into the library. The sheen rule underlines it, so the accent means
+   the same thing here as it does on every card. */
+.hero-cta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variation-settings: 'wdth' 96, 'wght' 600;
+  font-size: clamp(15px, 1.3vw, 18px);
+  color: var(--chrome);
+  padding-bottom: 7px;
+  background: var(--sheen-rule) bottom left / 100% 2px no-repeat;
+}
+.hero-cta span { font-size: 0.85em; color: var(--chrome); transition: transform 0.3s var(--ease-out); }
+.hero-cta:hover span { transform: translate(2px, -2px); }
 
-#home-title .ch {
+.scroll-cue {
+  position: absolute;
+  left: var(--gut);
+  bottom: 26px;
+  color: var(--alu-faint);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.scroll-cue i {
+  display: block;
+  width: 2px;
+  height: 34px;
+  background: linear-gradient(180deg, var(--alu), transparent);
+}
+/* the drag affordance sits ON the mechanism, mirrored against the scroll cue —
+   the instruction lives where the interaction happens */
+.hero-hint {
+  position: absolute;
+  right: var(--gut);
+  bottom: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--alu-dim);
+  border-radius: 999px;
+  padding: 9px 15px;
+  background: color-mix(in srgb, var(--polymer-2) 82%, transparent);
+  box-shadow: var(--chamfer);
+  backdrop-filter: blur(6px);
+}
+.hero-hint svg { width: 14px; height: 14px; animation: spinHint 5s linear infinite; }
+@keyframes spinHint { to { transform: rotate(360deg); } }
+
+/* category page hero */
+.cat-hero { padding: clamp(120px, 18vh, 190px) var(--gut) clamp(30px, 5vh, 56px); }
+.cat-hero h1 { font-size: clamp(40px, 6.4vw, 92px); }
+.cat-back {
   display: inline-block;
-  opacity: 0;
+  margin-bottom: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--alu-dim);
 }
+.cat-back:hover { color: var(--chrome); }
 
-#home-title .ch:nth-child(5) {
-  color: #6ea8ff;
-}
-
-.home-tag {
-  margin-top: 14px;
-  color: var(--muted);
-  font-size: var(--fs-md);
-  letter-spacing: 0.02em;
-  opacity: 0;
-}
-
-.home-grid {
+/* --- three promises ----------------------------------------------------- */
+.promises {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 380px));
-  justify-content: center;
-  gap: var(--sp-5);
-  padding-bottom: 10vh;
+  grid-template-columns: repeat(3, 1fr);
+  padding-inline: var(--gut);
+  background: var(--polymer-2);
+  box-shadow: var(--chamfer);
+}
+.promises div { padding: clamp(26px, 4vw, 44px) clamp(16px, 2.6vw, 38px); }
+.promises div + div { border-left: 1px solid var(--line-alu); }
+.promises div:first-child { padding-left: 0; }
+.promises div:last-child { padding-right: 0; }
+.promises b {
+  display: block;
+  font-variation-settings: 'wdth' 92, 'wght' 650;
+  font-size: clamp(16px, 1.4vw, 20px);
+  line-height: 1.2;
+  color: var(--chrome);
+}
+.promises p {
+  margin: 12px 0 0;
+  color: var(--alu-dim);
+  font-size: 13.5px;
+  line-height: 1.5;
+  max-width: 34ch;
+}
+@media (max-width: 760px) {
+  .promises { grid-template-columns: 1fr; }
+  .promises div { padding-inline: 0; }
+  .promises div + div { border-left: 0; border-top: 1px solid var(--line-alu); }
+  .promises p { max-width: none; }
 }
 
+/* --- the machines ------------------------------------------------------- */
+.machines { padding: clamp(40px, 6vw, 84px) 0 0; }
+.machines-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 var(--gut) 22px;
+  flex-wrap: wrap;
+}
+.machines-head h2 {
+  margin: 0;
+  font-variation-settings: 'wdth' 74, 'wght' 700;
+  font-size: clamp(30px, 4.6vw, 58px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+.machines-head .mono { color: var(--alu-dim); }
+
+/* the section head is a nameplate bolted above its rack: recessed ground,
+   the category's dye showing as a machined edge on the left */
+.ex-cat { margin-top: clamp(20px, 2.6vw, 34px); }
+.ex-cat-head {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 16px var(--gut) 18px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.26), transparent 78%);
+  box-shadow: inset 0 1px 0 rgba(216, 221, 227, 0.06);
+  margin-bottom: clamp(14px, 1.5vw, 22px);
+}
+.ex-cat-head::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--dye, var(--heat-gold));
+  opacity: 0.85;
+}
+.ex-cat-head h3 {
+  margin: 0;
+  font-variation-settings: 'wdth' 118, 'wght' 600;
+  font-size: clamp(15px, 1.5vw, 20px);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+.ex-cat-head p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--alu-dim);
+  font-size: 13.5px;
+  max-width: 52ch;
+}
+/* the count is stamped the same way the card numbers are — one marking system */
+.ex-cat-head .mono {
+  justify-self: end;
+  padding: 5px 10px 4px;
+  border-radius: 4px;
+  background: var(--rubber);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(216, 221, 227, 0.05);
+  color: var(--dye, var(--heat-gold));
+  font-variant-numeric: tabular-nums;
+}
+
+/* A rack of cover plates. The product is 3D, so the library shows the 3D —
+   each plate is a real render of that machine's opening step. */
+.ex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+  gap: clamp(14px, 1.5vw, 22px);
+  padding: 0 var(--gut) clamp(10px, 1.4vw, 18px);
+}
 .ex-card {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding: 28px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--panel);
-  box-shadow: var(--shadow-card);
-  text-decoration: none;
-  color: var(--text);
-  opacity: 0;
+  display: block;
+  border-radius: 10px;
   overflow: hidden;
-  transform-style: preserve-3d;
-  will-change: transform;
-  transition: border-color var(--dur-mid) var(--ease-out),
-    box-shadow var(--dur-mid) var(--ease-out);
+  background: var(--polymer-2);
+  box-shadow: var(--chamfer);
+  transition: box-shadow 0.35s var(--ease-out), transform 0.35s var(--ease-out);
 }
-
-/* accent mesh-glow bleeding from the top-left — the card's colour identity.
-   Brightens on hover; the JS tilt handler drives the 3D rotate on top. */
+/* the plate's top edge lights up like a part being energised */
 .ex-card::before {
   content: '';
   position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(80% 60% at 0% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%);
-  opacity: 0.6;
-  transition: opacity var(--dur-mid) var(--ease-out);
-}
-
-/* thin accent rule along the top edge */
-.ex-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
+  z-index: 2;
   left: 0;
   right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  opacity: 0.5;
-  transition: opacity var(--dur-mid) var(--ease-out);
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--heat-straw), var(--heat-bronze) 45%, var(--heat-blue));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.42s var(--ease-out);
 }
-
-.ex-card > * {
-  position: relative;
-  z-index: 1;
+.ex-card:hover,
+.ex-card:focus-visible {
+  box-shadow: var(--chamfer-lit), 0 18px 40px rgba(0, 0, 0, 0.45);
+  transform: translateY(-3px);
 }
-
-.ex-card.tilt {
-  transition: border-color var(--dur-mid) var(--ease-out),
-    box-shadow var(--dur-mid) var(--ease-out), transform var(--dur-fast) var(--ease-out);
-}
-
-.ex-card:hover {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-pop), 0 0 40px -8px color-mix(in srgb, var(--accent) 45%, transparent);
-}
-
 .ex-card:hover::before,
-.ex-card:hover::after {
-  opacity: 1;
-}
+.ex-card:focus-visible::before { transform: scaleX(1); }
 
-.ex-kicker {
+.ex-shot {
+  display: block;
+  width: 100%;
+  /* the width/height attributes are there to reserve space before the plate
+     loads, but they make BOTH dimensions definite — which makes the browser
+     ignore aspect-ratio entirely. height:auto hands the ratio back control. */
+  height: auto;
+  aspect-ratio: 8 / 5;
+  object-fit: cover;
+  background: var(--rubber);
+  transition: transform 0.6s var(--ease-out);
+}
+.ex-card:hover .ex-shot { transform: scale(1.05); }
+
+/* the label strip milled into the bottom of the plate */
+.ex-plate {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 11px;
+  padding: 12px 14px 14px;
+  background: var(--polymer-2);
+  box-shadow: inset 0 1px 0 rgba(216, 221, 227, 0.07);
+}
+.ex-plate::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--tex-brushed);
+  /* the strip is only ~58px tall, so a full 256px tile shows a raw slice of the
+     grain as distinct rules. Compressing it puts several source rows into every
+     rendered pixel, and the browser's downscale filtering turns them into sheen
+     instead of scanlines. */
+  background-size: 100% 96px;
+  opacity: 0.035;
+}
+.ex-plate > * { position: relative; }
+
+/* the index number is STAMPED into the plate — a recess, so it reads as part
+   marking rather than as a bullet */
+.ex-no {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  padding: 4px 0 3px;
+  border-radius: 4px;
+  background: var(--rubber);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(216, 221, 227, 0.05);
   font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--accent);
+  font-size: 11px;
+  color: var(--alu-faint);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.25s, background 0.25s;
 }
-
-.ex-card h2 {
-  font-family: var(--font-display);
-  font-size: var(--fs-lg);
-  font-weight: 600;
+.ex-card:hover .ex-no {
+  color: var(--heat-gold);
+  background: color-mix(in srgb, var(--heat-gold) 12%, var(--rubber));
+}
+.ex-name {
+  grid-area: 1 / 2;
+  font-variation-settings: 'wdth' 92, 'wght' 600;
+  font-size: 16px;
   letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--chrome);
 }
-
-.ex-card p {
-  font-size: var(--fs-sm);
-  line-height: 1.65;
-  color: var(--muted);
-  flex: 1;
-}
-
-.ex-steps {
+.ex-go {
+  grid-area: 1 / 3;
   font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  letter-spacing: 0.06em;
-}
-
-.home-foot {
-  text-align: center;
-  padding: 24px 0 32px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: var(--fs-sm);
-  opacity: 0;
-}
-
-/* --- library hierarchy + search --- */
-
-.home-hero-cat {
-  padding-top: 12vh;
-}
-
-.home-hero .back-link {
-  position: static;
-  display: inline-block;
-  margin-bottom: 28px;
-}
-
-.home-search {
-  margin-top: 34px;
-  width: min(440px, 90%);
-  padding: 13px 22px;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--border);
-  background: var(--panel);
-  backdrop-filter: blur(10px);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--fs-base);
-  letter-spacing: 0.02em;
-  outline: none;
-  transition: border-color var(--dur-mid) var(--ease-out),
-    box-shadow var(--dur-mid) var(--ease-out);
-}
-
-.home-search::placeholder {
-  color: var(--muted);
-}
-
-.home-search:focus {
-  border-color: #6ea8ff;
-  box-shadow: 0 0 0 4px rgba(110, 168, 255, 0.12);
-}
-
-.home-section {
-  padding-bottom: 2vh;
-}
-
-.home-section-head {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  max-width: 1200px;
-  margin: 0 auto 18px;
-  padding: 0 4px;
-  font-family: var(--font-mono);
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.home-section-head a {
-  color: var(--accent, var(--text));
-  text-decoration: none;
-}
-
-.home-section-head a[href]:hover {
-  text-decoration: underline;
-}
-
-.home-section-head span {
-  color: var(--muted);
   font-size: 13px;
-  letter-spacing: 0.08em;
+  color: var(--alu-faint);
+  opacity: 0.3;
+  transform: translateX(-6px);
+  transition: transform 0.34s var(--ease-out), opacity 0.34s var(--ease-out), color 0.34s;
+}
+.ex-card:hover .ex-go,
+.ex-card:focus-visible .ex-go {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--heat-gold);
+}
+.ex-spec {
+  grid-area: 2 / 1 / 3 / 4;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--alu-faint);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.home-section .home-grid {
-  padding-bottom: 4vh;
+/* a category folder has no render of its own — the dye does the identifying */
+.ex-folder { min-height: 148px; display: flex; align-items: flex-end; }
+.ex-folder .ex-plate { width: 100%; }
+.ex-folder::before { background: var(--dye, var(--heat-gold)); }
+.ex-folder .ex-name { grid-area: 1 / 1 / 2 / 3; }
+
+@media (max-width: 620px) {
+  .ex-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .ex-plate { padding: 10px 11px 12px; }
+  .ex-name { font-size: 14px; }
+  .ex-spec { font-size: 9.5px; }
+  .ex-go { opacity: 0.5; transform: none; }
 }
 
-.ex-folder h2::after {
-  content: ' →';
-  color: var(--accent);
+/* --- the finder --------------------------------------------------------- */
+.finder-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: color-mix(in srgb, var(--rubber) 76%, transparent);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s var(--ease-out);
 }
+.finder-scrim[data-open='1'] { opacity: 1; pointer-events: auto; }
+
+.finder {
+  position: fixed;
+  z-index: 91;
+  left: 50%;
+  top: 12vh;
+  width: min(720px, calc(100vw - 32px));
+  transform: translate(-50%, -14px);
+  max-height: 74vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  font-family: var(--font-machine);
+  background: var(--polymer-2);
+  box-shadow: var(--chamfer-lit), 0 40px 90px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s var(--ease-out), transform 0.28s var(--ease-out);
+}
+.finder[data-open='1'] { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+/* on a phone the finder IS the screen — thumb-first, full height */
+@media (max-width: 700px) {
+  .finder {
+    top: 0;
+    left: 0;
+    transform: translateY(12px);
+    width: 100vw;
+    height: 100svh;
+    max-height: none;
+    border-radius: 0;
+  }
+  .finder[data-open='1'] { transform: translateY(0); }
+}
+
+.finder-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line-alu);
+  flex: none;
+}
+.finder-bar svg { flex: none; color: var(--alu-faint); }
+.finder-bar input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: 0;
+  color: var(--chrome);
+  font-family: var(--font-machine);
+  font-variation-settings: 'wdth' 100, 'wght' 500;
+  font-size: 19px;
+}
+.finder-bar input::placeholder { color: var(--alu-faint); font-variation-settings: 'wght' 400; }
+.finder-bar button {
+  flex: none;
+  background: var(--rubber);
+  border: 0;
+  border-radius: 6px;
+  color: var(--alu-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 6px 9px;
+  cursor: pointer;
+}
+
+.finder-body { overflow-y: auto; overscroll-behavior: contain; flex: 1; }
+.finder-group {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--alu-faint);
+  padding: 16px 18px 8px;
+}
+.hit {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 11px 18px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.hit[data-sel='1'] {
+  background: color-mix(in srgb, var(--chrome) 6%, transparent);
+  border-left-color: var(--heat-gold);
+}
+.hit b {
+  font-variation-settings: 'wdth' 96, 'wght' 550;
+  font-weight: normal;
+  font-size: 16px;
+  color: var(--chrome);
+}
+.hit-why {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--alu-faint);
+  line-height: 1.45;
+}
+.hit-why mark {
+  background: color-mix(in srgb, var(--heat-gold) 26%, transparent);
+  color: var(--chrome);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+.hit-tag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--alu-faint);
+  white-space: nowrap;
+}
+
+/* --- the requisition: what a miss looks like ---------------------------- */
+.req { padding: 22px 18px 26px; }
+.req-plate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--rubber);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45), inset 0 -1px 0 rgba(216, 221, 227, 0.05);
+}
+.req-plate .mono { color: var(--heat-gold); }
+.req-no { font-family: var(--font-mono); font-size: 11px; color: var(--alu-faint); letter-spacing: 0.1em; }
+.req h4 {
+  margin: 16px 0 6px;
+  font-variation-settings: 'wdth' 88, 'wght' 600;
+  font-weight: normal;
+  font-size: 20px;
+  color: var(--chrome);
+}
+.req h4 q { color: var(--heat-gold); font-style: normal; }
+.req > p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--alu-dim); max-width: 54ch; }
+.req-form { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.req-form input {
+  flex: 1 1 210px;
+  min-width: 0;
+  background: var(--rubber);
+  border: 0;
+  border-radius: 8px;
+  padding: 13px 15px;
+  color: var(--chrome);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  outline: 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.req-form input::placeholder { color: var(--alu-faint); }
+.req-form input:focus { box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45), 0 0 0 2px var(--coat); }
+.req-form button {
+  flex: none;
+  border: 0;
+  border-radius: 8px;
+  padding: 13px 20px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #16181b;
+  background: linear-gradient(180deg, var(--heat-straw), var(--heat-bronze));
+  box-shadow: var(--chamfer-lit);
+}
+.req-done {
+  margin-top: 16px;
+  padding: 13px 15px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--heat-gold) 14%, var(--rubber));
+  box-shadow: var(--chamfer);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--chrome);
+}
+.req-near { margin-top: 20px; }
+
+/* --- footer ------------------------------------------------------------- */
+.home-foot {
+  margin-top: clamp(28px, 3.5vw, 52px);
+  border-top: 1px solid var(--line-alu);
+  padding: clamp(28px, 4vw, 44px) var(--gut) clamp(36px, 5vw, 56px);
+}
+.foot-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.foot-top .mono { color: var(--alu-faint); line-height: 1.9; }
+.foot-links { display: flex; gap: 18px; flex-wrap: wrap; }
+.foot-links a { color: var(--alu-faint); transition: color 0.2s; }
+.foot-links a:hover { color: var(--chrome); }
+
+/* --- credits: the gear pair --------------------------------------------
+   Two meshed gears, one name under each. The face is one flat plane, so the
+   rim and hub are TURNED STEPS in it — stroked rings, not discs. Filling them
+   would bury the lightening holes, and the holes are the only thing that makes
+   the rotation readable at this size. */
+.gearbox { width: 220px; margin: clamp(30px, 4.5vw, 52px) auto 0; text-align: center; }
+.gear-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.gear-body {
+  fill: color-mix(in srgb, var(--alu) 30%, var(--polymer));
+  stroke: color-mix(in srgb, var(--alu) 42%, transparent);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  transition: fill 0.45s var(--ease-out), stroke 0.45s var(--ease-out);
+}
+.gear-rim,
+.gear-hub {
+  fill: none;
+  stroke: color-mix(in srgb, var(--alu) 22%, transparent);
+  stroke-width: 1;
+  transition: stroke 0.45s var(--ease-out), fill 0.45s var(--ease-out);
+}
+.gear-hub { fill: color-mix(in srgb, var(--alu) 44%, var(--polymer)); }
+.gear-sheen { pointer-events: none; }
+.gear { cursor: pointer; opacity: 0.85; transition: opacity 0.45s var(--ease-out); }
+.gearbox[data-drive='a'] .gear-a,
+.gearbox[data-drive='b'] .gear-b { opacity: 1; }
+.gearbox[data-drive='a'] .gear-a .gear-body,
+.gearbox[data-drive='b'] .gear-b .gear-body {
+  fill: color-mix(in srgb, var(--tint) 72%, var(--polymer));
+  stroke: color-mix(in srgb, var(--tint) 70%, transparent);
+}
+.gearbox[data-drive='a'] .gear-a .gear-hub,
+.gearbox[data-drive='b'] .gear-b .gear-hub {
+  fill: color-mix(in srgb, var(--tint) 46%, var(--polymer));
+}
+.gearbox[data-drive='a'] .gear-a .gear-rim,
+.gearbox[data-drive='b'] .gear-b .gear-rim,
+.gearbox[data-drive='a'] .gear-a .gear-hub,
+.gearbox[data-drive='b'] .gear-b .gear-hub {
+  stroke: color-mix(in srgb, var(--tint) 50%, transparent);
+}
+.gear-names { display: flex; margin-top: 10px; }
+.gear-name {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--alu-dim);
+  padding: 6px 0;
+  transition: color 0.3s var(--ease-out);
+}
+.gear-name:hover,
+.gear-name:focus-visible { color: var(--tint); }
+.gear-caption {
+  margin: 12px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--alu-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home *,
+  .home *::before,
+  .home *::after,
+  .finder * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .home-hero h1 .ln > i { transform: none; animation: none; }
+}
+
 
 /* ================= player ================= */
 
