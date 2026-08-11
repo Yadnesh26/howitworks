@@ -80,7 +80,15 @@ if (existsSync(metaPath)) {
 }
 const displayTitle =
   editorial?.titleCard ?? (metaTitle ? compactTitle(metaTitle).toUpperCase() : null);
-// End card: the closing share/funnel beat. Overridable per explainer; `\n`
+// End card: the closing share/funnel beat. OPT-IN (2026-08-11, user request):
+// it burns only when explicitly asked for, via `--endcard` or an `endCard`
+// field in video.js. It used to ride `--captions` by default, which put a
+// "Full length version on YouTube" CTA on the end of shorts whose long-form
+// did not exist. A CTA is an outward-facing promise, so it is now the
+// caller's deliberate choice, never a side effect of wanting captions.
+//
+// The copy below is what `--endcard` burns when no per-explainer `endCard`
+// overrides it. Overridable per explainer; `\n`
 // splits lines IF you want more than one — but the EndCard style shares its
 // MarginV/Alignment with Cap (the rail captions) on purpose, so a 1-line
 // card lands at the EXACT same position captions have held all video. A
@@ -394,7 +402,12 @@ const wantCaptions = args.includes('--captions');
 // title + end card ride the same single burn pass as captions (each burn is a
 // full re-encode, so they must not cost extra passes). Opt out individually.
 const wantTitle = wantCaptions && !args.includes('--no-title');
-const wantEndCard = wantCaptions && !args.includes('--no-endcard');
+// opt-in: --endcard, or a per-explainer `endCard` in video.js (itself an
+// explicit ask). --no-endcard still force-disables either of those.
+const wantEndCard =
+  wantCaptions &&
+  !args.includes('--no-endcard') &&
+  (args.includes('--endcard') || editorial?.endCard != null);
 const TITLE_SECONDS = 5;
 const ENDCARD_SECONDS = 3.5;
 const short = format === 'short';

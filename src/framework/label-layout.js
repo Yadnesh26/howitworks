@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { setLeader } from './labels.js';
 
 // Runtime label declutter — keeps callout pills readable regardless of how
@@ -12,10 +13,21 @@ import { setLeader } from './labels.js';
 // label in every explainer against a viewport width nobody can predict, so it
 // is resolved here instead — once, for the whole library.
 //
-// Nudges are screen-space deltas relative to the anchor, so no camera
-// projection is needed: the base leader (dir,len) plus the delta fully defines
-// the new endpoint. Bases are reset from the element each frame so nudges never
-// compound. Cheap for the handful of labels a step shows.
+// Nudges are screen-space deltas relative to the anchor. The anchor itself
+// (it.ax/it.ay) used to come from `el.getBoundingClientRect()` — a "zero-size
+// box AT the anchor" placed there by CSS2DRenderer's OWN render() call earlier
+// in the same animation-loop tick. That is stale one frame behind any pose
+// change applied synchronously AFTER that render (e.g. a headless script that
+// seeks a timeline and reads DOM state in the same tick, as verify.mjs's
+// label-visibility gate does): CSS2DRenderer hasn't repositioned the DOM node
+// for the new pose yet, so the flip/bounds math ran against the PREVIOUS
+// anchor position while the pill's base leader was already reset for the new
+// one — producing wildly wrong offsets (confirmed: hundreds of px off, only on
+// steps reached deep in the page / whose anchors don't move every frame, i.e.
+// exactly where a stale-but-plausible-looking cached position goes unnoticed).
+// Projecting the CSS2DObject's world position through the camera directly
+// (the same technique verify.mjs's own measurement uses) is immune to this —
+// it reflects the CURRENT scene graph state regardless of render-order timing.
 const MARGIN = 5; // px of clear space required between pills
 const EDGE = 6; // px of clear space required against the frame edge
 const GAP = 4; // labels.js's own pill-to-leader offset — must match
@@ -26,7 +38,9 @@ const MOBILE_MAX = 720; // must match the max-width breakpoint in style.css
 // anchor the leader points, so the sign of ex decides which.
 const pillLeft = (ax, ex, tw) => (ex >= 0 ? ax + ex + GAP : ax + ex - tw - GAP);
 
-export function declutterCallouts(scene) {
+const _scratch = new THREE.Vector3();
+
+export function declutterCallouts(scene, camera) {
   const items = [];
   scene.traverse((o) => {
     if (!o.isCSS2DObject || !o.visible || !o.element) return;
@@ -37,7 +51,7 @@ export function declutterCallouts(scene) {
     const bdir = parseFloat(el.dataset.baseDir);
     const blen = parseFloat(el.dataset.baseLen);
     setLeader(el, bdir, blen); // reset to authored position before re-measuring
-    items.push({ el, tx, bdir, blen });
+    items.push({ el, obj: o, tx, bdir, blen });
   });
   // NB: no early-out for a single label any more. Overlap needs two pills, but
   // running off the edge only needs one — and a lone label was exactly the case
@@ -73,9 +87,20 @@ export function declutterCallouts(scene) {
   }
 
   for (const it of items) {
-    const a = it.el.getBoundingClientRect(); // zero-size box AT the anchor
-    it.ax = a.left;
-    it.ay = a.top;
+    // Project the callout's world anchor directly rather than trusting
+    // CSS2DRenderer to have already repositioned el for the current frame
+    // (see the header comment) — camera is optional so callers that can't
+    // supply one (none in this codebase, but keep it a soft dependency)
+    // still get the old DOM-rect behavior.
+    if (camera) {
+      it.obj.getWorldPosition(_scratch).project(camera);
+      it.ax = frame.left + (_scratch.x * 0.5 + 0.5) * frame.width;
+      it.ay = frame.top + (-_scratch.y * 0.5 + 0.5) * frame.height;
+    } else {
+      const a = it.el.getBoundingClientRect(); // zero-size box AT the anchor
+      it.ax = a.left;
+      it.ay = a.top;
+    }
     it.box = it.tx.getBoundingClientRect();
     it.tw = it.box.width;
     it.th = it.box.height;

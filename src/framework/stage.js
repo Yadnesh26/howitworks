@@ -330,7 +330,7 @@ export function createStage(container, options = {}) {
     labelRenderer.render(scene, camera);
     // after the CSS2D pass has positioned every pill, nudge overlapping ones
     // apart so labels never collide (see label-layout.js)
-    declutterCallouts(scene);
+    declutterCallouts(scene, camera);
   });
 
   return {
