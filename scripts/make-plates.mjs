@@ -24,7 +24,26 @@ const PORT = flag('port', '5174');
 const ONLY = flag('only', '');
 const STEP = Number(flag('step', '1')) - 1; // hero step: the finished product shot
 const FRAC = Number(flag('frac', '0.45'));
+// An explicit --step/--frac is someone iterating on one plate by hand, so it
+// beats the table below; without it the table beats the default.
+const STEP_GIVEN = args.some((a) => a.startsWith('--step='));
+const FRAC_GIVEN = args.some((a) => a.startsWith('--frac='));
 const OUT = 'public/plates';
+
+// Per-explainer hero overrides. Step 1 is the right plate for almost every
+// explainer, but each step's camera is composed to push its subject into the
+// right two-thirds, clear of the text panel. The plate hides that panel, so on
+// a few scenes the deliberate offset reads as dead space instead. Where a
+// later step frames better WITHOUT changing the in-app camera, pin it here —
+// otherwise a plain `make-plates.mjs` run silently reverts the fix.
+const OVERRIDES = {
+  // step 1 sits the engine high-left with the plume running off-frame; the
+  // sealed-and-running finale is the same editorial beat, framed tighter.
+  'rocket-engine': { step: 9 },
+  // the sealed phone renders small and lost; the exploded electrode stack
+  // fills the frame and actually shows what a touchscreen is.
+  touchscreen: { step: 3 },
+};
 
 mkdirSync(OUT, { recursive: true });
 
@@ -57,6 +76,10 @@ async function waitForCameraSettle(pg, { timeoutMs = 4000, intervalMs = 140 } = 
 
 const failed = [];
 for (const id of ids) {
+  const ov = OVERRIDES[id] ?? {};
+  const step = STEP_GIVEN || ov.step === undefined ? STEP : ov.step - 1;
+  const frac = FRAC_GIVEN || ov.frac === undefined ? FRAC : ov.frac;
+
   // A fresh page per explainer: replaying a pause+seek()ed looped timeline
   // wedges the anime engine (see review-shots.mjs), so these pages are
   // single-use by design.
@@ -83,8 +106,8 @@ for (const id of ids) {
       step.scrollIntoView({ block: 'center' }); // rule 9: layout before render
       window.__hiw.activate(k);
       return true;
-    }, STEP);
-    if (!ok) throw new Error(`step ${STEP + 1} out of range`);
+    }, step);
+    if (!ok) throw new Error(`step ${step + 1} out of range`);
 
     await page.waitForTimeout(200);
     await waitForCameraSettle(page);
@@ -100,12 +123,12 @@ for (const id of ids) {
           rt.tl.seek(lap * f);
         }
       },
-      [STEP, FRAC],
+      [step, frac],
     );
     await page.waitForTimeout(160);
 
     await page.screenshot({ path: join(OUT, `${id}.jpg`), quality: 62, type: 'jpeg' });
-    console.log(`ok   ${id}`);
+    console.log(`ok   ${id}${ov.step || ov.frac ? `  (override: step ${step + 1})` : ''}`);
   } catch (e) {
     failed.push(id);
     console.error(`FAIL ${id}: ${e.message.split('\n')[0]}`);

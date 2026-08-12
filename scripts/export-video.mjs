@@ -311,6 +311,13 @@ for (const [si, shot] of shots.entries()) {
       const want = new Set(wanted);
       stage.scene.traverse((o) => {
         if (!o.isCSS2DObject || !o.element) return;
+        // Only narrow within whatever the step's onEnter already turned on —
+        // never resurrect a label from a DIFFERENT callout set. Explainers
+        // that reuse a name across sets (e.g. a mic capsule and a speaker
+        // driver both labelling their coil "Voice coil") previously lit up
+        // BOTH simultaneously, because this traversed the whole scene by
+        // text match alone with no notion of which set is active.
+        if (!o.visible) return;
         const tx = o.element.querySelector('.callout-text');
         o.visible = want.has(tx ? tx.textContent : '');
       });
