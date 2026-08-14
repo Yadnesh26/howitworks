@@ -9,4 +9,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'satellite trilateration atomic clock time of flight ephemeris constellation',
   categories: ['communications'],
+  youtubeUrl: 'https://www.youtube.com/shorts/noW1hP7T9Ck',
 };

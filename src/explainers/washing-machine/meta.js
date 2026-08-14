@@ -12,4 +12,5 @@ export default {
   keywords:
     'front loader washer drum outer tub lifter paddle detergent drawer heating element drain pump spin cycle counterweight suspension spring damper direct drive rotor stator bellows',
   categories: ['home'],
+  youtubeUrl: 'https://www.youtube.com/shorts/QTwRSA5kVkU',
 };

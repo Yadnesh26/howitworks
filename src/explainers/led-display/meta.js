@@ -11,4 +11,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'led die rgb subpixel pwm multiplexing driver ic matrix panel',
   categories: ['electronics'],
+  youtubeUrl: 'https://www.youtube.com/shorts/qYq0PHYwd7o',
 };

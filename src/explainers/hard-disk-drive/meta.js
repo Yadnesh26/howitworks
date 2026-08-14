@@ -11,4 +11,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'platter read write head actuator arm voice coil spindle sector track',
   categories: ['electronics', 'precision'],
+  youtubeUrl: 'https://www.youtube.com/shorts/jy9bJglYLOc',
 };

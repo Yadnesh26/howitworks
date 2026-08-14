@@ -9,4 +9,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'escapement mainspring balance wheel hairspring pallet fork barrel jewel tourbillon',
   categories: ['precision'],
+  youtubeUrl: 'https://www.youtube.com/shorts/xCrg3kehMLU',
 };

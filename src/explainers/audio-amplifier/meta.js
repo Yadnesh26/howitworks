@@ -10,4 +10,5 @@ export default {
   keywords:
     'microphone capsule diaphragm voice coil preamp gain transistor push pull class AB output stage heatsink transformer amplifier speaker signal chain',
   categories: ['electronics', 'home'],
+  youtubeUrl: 'https://www.youtube.com/shorts/lcJuVt_cHko',
 };

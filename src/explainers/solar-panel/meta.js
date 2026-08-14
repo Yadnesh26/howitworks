@@ -9,4 +9,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'photovoltaic silicon wafer pn junction photon busbar inverter cell',
   categories: ['power'],
+  youtubeUrl: 'https://www.youtube.com/shorts/TkieMe3WIxE',
 };

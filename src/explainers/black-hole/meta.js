@@ -16,4 +16,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'event horizon photon sphere accretion disk singularity gravitational lensing schwarzschild',
   categories: ['space'],
+  youtubeUrl: 'https://www.youtube.com/shorts/lm5daAJ-E8E',
 };

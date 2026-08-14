@@ -11,4 +11,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'antenna dipole 2.4ghz 5ghz csma channel ssid access point',
   categories: ['communications', 'home'],
+  youtubeUrl: 'https://www.youtube.com/shorts/6e1rA8z_2SM',
 };

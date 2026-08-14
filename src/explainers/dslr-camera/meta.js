@@ -9,4 +9,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'shutter mirror aperture iris diaphragm pentaprism sensor lens focal plane',
   categories: ['precision'],
+  youtubeUrl: 'https://www.youtube.com/shorts/nuTvARfbj1g',
 };

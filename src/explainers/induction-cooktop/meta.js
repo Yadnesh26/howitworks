@@ -11,4 +11,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'induction coil eddy current ferromagnetic hob igbt',
   categories: ['home'],
+  youtubeUrl: 'https://www.youtube.com/shorts/2Ndn5gLHhcI',
 };

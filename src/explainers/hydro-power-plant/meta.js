@@ -9,4 +9,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'dam penstock francis turbine reservoir head generator spillway',
   categories: ['power'],
+  youtubeUrl: 'https://www.youtube.com/shorts/NnEaz8mkE-s',
 };

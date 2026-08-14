@@ -9,4 +9,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'refrigerant freon split ac cooling coil heat pump',
   categories: ['home'],
+  youtubeUrl: 'https://www.youtube.com/shorts/T_SOflCuYqI',
 };

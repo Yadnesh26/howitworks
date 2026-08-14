@@ -9,4 +9,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'crankpin motorcycle firing order balance vibration',
   categories: ['vehicles'],
+  youtubeUrl: 'https://www.youtube.com/shorts/b2ltxHzSxSY',
 };

@@ -12,4 +12,5 @@ export default {
   keywords:
     'MacPherson strut coil spring shock absorber damper control arm ball joint knuckle anti-roll bar sway bar bump stop',
   categories: ['vehicles'],
+  youtubeUrl: 'https://www.youtube.com/shorts/Ty_ofYymwSk',
 };

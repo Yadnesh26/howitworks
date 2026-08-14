@@ -11,4 +11,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'piston crankshaft camshaft valve spark plug connecting rod otto cycle',
   categories: ['vehicles'],
+  youtubeUrl: 'https://www.youtube.com/shorts/nNy_5GYOrAY',
 };

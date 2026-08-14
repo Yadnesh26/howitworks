@@ -1288,6 +1288,62 @@ body:has(.home)::after {
   opacity: 0;
 }
 
+.hero-video-link {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 22px;
+  width: fit-content;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 10px 18px 10px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg) 76%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), var(--shadow-card);
+  opacity: 0;
+  transition: color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.hero-video-link svg {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.hero-video-link:hover {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 26px -4px var(--accent), var(--shadow-card);
+  transform: translateY(-1px);
+}
+
+.hero-video-link:hover svg {
+  transform: scale(1.12);
+}
+
+.hero-video-link:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.hero-video-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.hero-video-link svg { flex-shrink: 0; }
+
 .steps {
   position: relative;
   z-index: 1;
@@ -1533,5 +1589,27 @@ body:has(.home)::after {
 
   .player-hero {
     padding: 0 24px;
+  }
+
+  /* Inline under the summary it competes with the bottom sheet/rail for a
+     cramped strip of vertical space. Pinned to the top-right corner instead —
+     mirrors .back-link's top-left fixed placement, out of the model's way. */
+  .hero-video-link {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 3;
+    margin-top: 0;
+    /* Opaque rather than leaning on the base rule's backdrop-filter blend —
+       a corner badge over the busiest part of the model (fan/compressor
+       callouts cluster here) reads more reliably with a flat, fully opaque
+       fill than a translucent one. */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: color-mix(in srgb, var(--accent) 22%, var(--bg) 88%);
+  }
+
+  .hero-video-link-full {
+    display: none;
   }
 }

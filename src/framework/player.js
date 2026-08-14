@@ -31,6 +31,16 @@ export function mountExplainer(def, container) {
         <p class="hero-kicker">${kicker}</p>
         <h1>${def.title}</h1>
         <p class="hero-summary">${def.summary ?? ''}</p>
+        ${
+          def.youtubeUrl
+            ? `<a class="hero-video-link" href="${def.youtubeUrl}" target="_blank" rel="noopener">
+                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                   <path d="M8 5v14l11-7z" />
+                 </svg>
+                 <span class="hero-video-link-full">Watch on</span>YouTube
+               </a>`
+            : ''
+        }
       </header>
       <main class="steps"></main>
     </div>

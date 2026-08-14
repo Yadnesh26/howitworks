@@ -9,4 +9,5 @@ export default {
   // part names, so search finds this machine by what is inside it
   keywords: 'turbofan compressor blade combustor nozzle bypass thrust',
   categories: ['vehicles'],
+  youtubeUrl: 'https://www.youtube.com/shorts/IXCZZ_xdmSk',
 };

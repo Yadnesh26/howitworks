@@ -12,4 +12,5 @@ export default {
   keywords:
     'x-ray tube cathode filament thermionic emission focusing cup anode bremsstrahlung rotating anode stator collimator lead shutters beryllium window anti-scatter grid scintillator flat panel detector radiograph',
   categories: ['medical'],
+  youtubeUrl: 'https://www.youtube.com/shorts/CnGX6E45W_E',
 };
