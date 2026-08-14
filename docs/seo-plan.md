@@ -170,29 +170,57 @@ After F1 a jet-engine page carries 283 words; pages beating it carry
 1,500–3,000. Target **1,200–1,800 words** of genuinely useful text — most of it
 already written.
 
-### C1 · A real article beneath the 3D — CRITICAL · 2–4 h/page
+### C1 · A real article beneath the 3D — ✅ PILOT SHIPPED 2026-08-15 (5/48)
 
-Below the scroll experience, not replacing it. Same voice, no filler.
+Below the scroll experience, not replacing it. Same voice, no filler. **This
+section originally assumed the `keywords` field could be auto-split into a
+parts list and `video.js` narration could be mechanically reworked into page
+prose — a research pass before building disproved both** (`keywords` mixes
+single words with unmarked multi-word phrases, brand names and acronyms, and
+abstract terms for non-physical explainers; `video.js` is written to be
+*spoken*, not read). What actually shipped:
 
-- **The 40-word answer** — an `<h2>` phrased as the query, answered in the
-  first two sentences. This is what gets lifted into snippets and AI answers.
-- **Step narrative** — step headings as `<h3>` + body copy, plus the `video.js`
-  narration reworked as prose. Two existing sources, one page.
-- **Parts list** — the `keywords` field is already a component inventory
-  ("turbofan compressor blade combustor nozzle bypass thrust"). One paragraph
-  each; each becomes a long-tail entry point.
-- **Numbers table** — RPM, temperatures, pressures. Original figures are
-  disproportionately cited by AI engines, and the house style already treats
-  numbers as characters.
-- **Common questions** — 4–6 real questions as headings, answered directly.
-  Prose sections, **not** FAQ schema (see S4).
-- **What goes wrong** — the failure-modes idea already in
-  [roadmap.md](roadmap.md). "Why does my X make a noise" is high-volume,
-  high-intent, badly served.
+- **New per-explainer file, `src/explainers/<id>/article.js`** — a plain
+  data module (no imports, same shape as `video.js`), safe for
+  `scripts/prerender.mjs` to import directly the way it already imports
+  `meta.js`. Five optional fields, each rendered only if present so a
+  half-finished file still improves the page: `directAnswer` (the 40-word
+  snippet target), `parts`, `numbers` (a real `<table>`), `faq`, and
+  `failureModes` (`faq`/`failureModes` share one `{q, a}` shape, different
+  section heading). Schema, rendering, and the full authoring workflow are
+  documented in `.claude/skills/write-article/SKILL.md`.
+- **`video.js` stays a research source, never a rendered field** — mined for
+  facts during authoring, rewritten in article voice, never pasted in as
+  spoken-word prose under the steps.
+- **Numbers and failure modes are frequently NOT already in the site's own
+  copy** — about half the library has near-zero digit-bearing figures in
+  step body text (jet-engine: zero, despite its own spec line). Budget C1 as
+  genuine per-explainer research (WebSearch + WebFetch, same discipline as
+  `add-explainer`'s mechanism research), not a templating pass.
+- **Pilot batch (done): jet-engine, x-ray-machine, car-suspension,
+  washing-machine, induction-cooktop** — deliberately split between the
+  numeric-sparse case (jet-engine) and numeric-rich cases, to prove the
+  pipeline against both before committing to the other 43. All 5 verified:
+  build clean, lazy chunk split intact, 1,331–2,108 words/page, hydration
+  swap clean (0 leftover static DOM in the live client-side page).
+- **This content is crawler-visible only, by deliberate choice** — it
+  renders in the prerendered HTML for search engines and non-JS crawlers,
+  but is NOT rendered into the live client-side player. Explicitly decided
+  against extending the visible product UI for this content; revisit only if
+  asked.
+- **Common questions render as plain prose headings**, not FAQPage schema
+  (dead since May 2026 — see S4).
 
 **Impact:** the difference between ranking somewhere and ranking first. Each
-page goes from ~1 viable query to 15–40. Do the 12 highest-demand explainers
-first (engines, fridge, AC, washing machine, transistor).
+completed page goes from ~1 viable query to 15–40.
+
+**Remaining 43 — deferred, not scheduled.** Two-tier split recommended: full
+5-section treatment for high-search-demand explainers (fridge, AC,
+transistor were called out in the original draft as good next candidates);
+a lighter `directAnswer` + `numbers`-only pass for conceptual explainers
+where `parts`/`failureModes` don't map cleanly (binary-search, gps-style
+topics). Revisit the priority line after Search Console has real query data
+on which pages are actually contesting rankings, rather than guessing now.
 
 ### C2 · Internal linking + category hubs — HIGH · 1 day
 
@@ -398,7 +426,7 @@ attention and commissions, being quoted with attribution is distribution.
 | F1 | Real URLs + prerender | **Critical** | 2–4 d | 2–6 wk | — |
 | F2 | Unique titles + descriptions | **Critical** | 3–4 h | 2–6 wk | F1 |
 | D1 | Google Images work | **Critical** | 1 d | 3–6 wk | F1, F3 |
-| C1 | Article layer beneath the 3D | **Critical** | 2–4 h/page | 6–12 wk | F1 |
+| C1 | Article layer beneath the 3D | **Pilot done · 5/48** | 2–4 h/page | 6–12 wk | F1 |
 | A1 | Reddit / HN participation | **Critical** | ongoing | immediate | F6 |
 | F3 | robots.txt + sitemaps | High | 2 h | days | F1 |
 | F4 | Canonicals + one hostname | High | 1 h | preventive | F1 |

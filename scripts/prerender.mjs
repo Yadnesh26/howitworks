@@ -74,6 +74,80 @@ function metaDescription(meta) {
   return d.length > 160 ? `${d.slice(0, 157).trimEnd()}…` : d;
 }
 
+// --- article.js — the hand-authored SEO article beneath each 3D scene -----
+// A plain data module (no imports, just an exported object — same shape as
+// video.js), so it's safe to import directly like meta.js/categories.js.
+// Optional per explainer: most don't have one yet (see docs/seo-plan.md §C1
+// for the rollout). Every field inside is ALSO optional — each render
+// helper below checks its own field independently, so a half-finished
+// article.js still improves the page instead of being all-or-nothing.
+async function loadArticle(id) {
+  const p = join(EXPLAINERS_DIR, id, 'article.js');
+  if (!existsSync(p)) return null;
+  try {
+    const mod = await import(pathToFileURL(p).href);
+    return mod.default ?? null;
+  } catch (e) {
+    // Warn and skip, don't fail the other 47 pages over one explainer's
+    // typo — unlike readSteps()'s throw-on-ambiguity above, this is real JS
+    // being imported, not regex-parsed untrusted string boundaries, so a
+    // mistake here is just a missing section, not a silent-corruption risk.
+    console.warn(`${id}/article.js: failed to load, skipping article section — ${e.message}`);
+    return null;
+  }
+}
+
+function directAnswerHtml(d) {
+  if (!d?.question || !d?.answer) return '';
+  return `
+      <section class="article-answer">
+        <h2>${esc(d.question)}</h2>
+        <p>${esc(d.answer)}</p>
+      </section>`;
+}
+
+function partsHtml(parts) {
+  if (!parts?.length) return '';
+  const items = parts
+    .map((p) => `<li><strong>${esc(p.name)}</strong> — ${esc(p.body)}</li>`)
+    .join('');
+  return `
+      <section class="article-parts">
+        <h2>The parts</h2>
+        <ul>${items}</ul>
+      </section>`;
+}
+
+function numbersHtml(numbers) {
+  if (!numbers?.length) return '';
+  const rows = numbers
+    .map(
+      (n) => `<tr><td>${esc(n.label)}</td><td>${esc(n.value)}</td><td>${esc(n.note ?? '')}</td></tr>`,
+    )
+    .join('');
+  return `
+      <section class="article-numbers">
+        <h2>Numbers that matter</h2>
+        <table>
+          <thead><tr><th>Figure</th><th>Value</th><th>Note</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </section>`;
+}
+
+// Shared by faq and failureModes — same {q, a} shape, different heading.
+function qaHtml(heading, items) {
+  if (!items?.length) return '';
+  const blocks = items
+    .map((i) => `<div><h3>${esc(i.q)}</h3><p>${esc(i.a)}</p></div>`)
+    .join('');
+  return `
+      <section class="article-qa">
+        <h2>${esc(heading)}</h2>
+        ${blocks}
+      </section>`;
+}
+
 // --- step copy, read from source text, never imported ---------------------
 // One step object per `heading:` match; any `body:`/`hint:` string that
 // follows before the next `heading:` belongs to that step — true for every
@@ -149,6 +223,11 @@ function page({ title, description, canonical, ogType = 'article', image, body }
     <meta property="og:url" content="${canonical}" />
     ${imageTags}
     <meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     ${headAssets}
   </head>
   <body>
@@ -158,7 +237,7 @@ function page({ title, description, canonical, ogType = 'article', image, body }
 `;
 }
 
-function explainerBody(meta) {
+async function explainerBody(meta) {
   const categoryId = meta.categories?.[0];
   const category = categoryId ? categories[categoryId] : null;
   const breadcrumb = `
@@ -185,6 +264,8 @@ function explainerBody(meta) {
     )
     .join('');
 
+  const article = await loadArticle(meta.id);
+
   return `
     <article>
       ${breadcrumb}
@@ -193,7 +274,12 @@ function explainerBody(meta) {
         <p>${esc(meta.summary ?? '')}</p>
         <img src="/plates/${plateFile(meta.id)}" alt="${esc(meta.title)} — interactive 3D animation" width="720" height="450" loading="eager" />
       </header>
+      ${directAnswerHtml(article?.directAnswer)}
       ${stepsHtml}
+      ${partsHtml(article?.parts)}
+      ${numbersHtml(article?.numbers)}
+      ${qaHtml('Common questions', article?.faq)}
+      ${qaHtml('What goes wrong', article?.failureModes)}
     </article>`;
 }
 
@@ -232,7 +318,7 @@ for (const meta of metas) {
       description: metaDescription(meta),
       canonical,
       image: plateUrl ? { url: plateUrl, width: 720, height: 450 } : null,
-      body: explainerBody(meta),
+      body: await explainerBody(meta),
     }),
   );
   sitemapUrls.push({

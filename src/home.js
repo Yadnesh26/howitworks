@@ -356,7 +356,7 @@ export function mountHome(container, catId = null) {
               <circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" />
             </svg>
             <span>Find a machine</span>
-            <kbd>&#8984;K</kbd>
+            <kbd>&#8984;&thinsp;K</kbd>
           </button>
           <a class="mono hide-sm" href="#machines">Machines</a>
           ${socialDock()}
