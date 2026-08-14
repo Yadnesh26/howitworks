@@ -50,7 +50,10 @@ const esc = (s = '') =>
 
 function lastmod(relPath) {
   try {
-    const out = execSync(`git log -1 --format=%cI -- "${relPath}"`, { encoding: 'utf8' }).trim();
+    const out = execSync(`git log -1 --format=%cI -- "${relPath}"`, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'], // silence git's stderr when there's no repo/history yet
+    }).trim();
     if (out) return out;
   } catch {
     /* not tracked yet, or not a git checkout — fall through */
