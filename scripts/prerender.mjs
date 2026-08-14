@@ -30,6 +30,13 @@ const SITE = 'https://www.whatdstuff.com';
 const DIST = resolve('dist');
 const EXPLAINERS_DIR = resolve('src/explainers');
 
+// Plate filenames carry the query language people actually search
+// ("3d animation") rather than the bare id — true for every explainer
+// regardless of whether the subject is a physical machine or a concept
+// (binary-search, black-hole), unlike a word like "cutaway" would be.
+// Keep in sync with scripts/make-plates.mjs, which writes this same name.
+const plateFile = (id) => `${id}-3d-animation.jpg`;
+
 if (!existsSync(join(DIST, 'index.html'))) {
   console.error('dist/index.html not found — run `vite build` before prerender.mjs');
   process.exit(1);
@@ -120,7 +127,13 @@ metas.sort((a, b) => a.title.localeCompare(b.title));
 const { categories, itemsIn } = await import(pathToFileURL(resolve('src/categories.js')).href);
 
 // --- page shell -------------------------------------------------------------
-function page({ title, description, canonical, ogType = 'article', body }) {
+function page({ title, description, canonical, ogType = 'article', image, body }) {
+  const imageTags = image
+    ? `<meta property="og:image" content="${image.url}" />
+    <meta property="og:image:width" content="${image.width}" />
+    <meta property="og:image:height" content="${image.height}" />
+    <meta name="twitter:image" content="${image.url}" />`
+    : '';
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -134,7 +147,8 @@ function page({ title, description, canonical, ogType = 'article', body }) {
     <meta property="og:title" content="${esc(title)}" />
     <meta property="og:description" content="${esc(description)}" />
     <meta property="og:url" content="${canonical}" />
-    <meta name="twitter:card" content="summary" />
+    ${imageTags}
+    <meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}" />
     ${headAssets}
   </head>
   <body>
@@ -177,7 +191,7 @@ function explainerBody(meta) {
       <header>
         <h1>${esc(meta.title)}</h1>
         <p>${esc(meta.summary ?? '')}</p>
-        <img src="/plates/${meta.id}.jpg" alt="${esc(meta.title)} — interactive 3D cutaway" width="720" height="450" loading="eager" />
+        <img src="/plates/${plateFile(meta.id)}" alt="${esc(meta.title)} — interactive 3D animation" width="720" height="450" loading="eager" />
       </header>
       ${stepsHtml}
     </article>`;
@@ -209,20 +223,22 @@ for (const meta of metas) {
   const title = `${meta.title} — Interactive 3D | whatDstuff`;
   const outDir = join(DIST, meta.id);
   mkdirSync(outDir, { recursive: true });
+  const plateRel = `public/plates/${plateFile(meta.id)}`;
+  const plateUrl = existsSync(resolve(plateRel)) ? `${SITE}/plates/${plateFile(meta.id)}` : null;
   writeFileSync(
     join(outDir, 'index.html'),
     page({
       title,
       description: metaDescription(meta),
       canonical,
+      image: plateUrl ? { url: plateUrl, width: 720, height: 450 } : null,
       body: explainerBody(meta),
     }),
   );
-  const plateRel = `public/plates/${meta.id}.jpg`;
   sitemapUrls.push({
     loc: canonical,
     lastmod: lastmod(`src/explainers/${meta.id}`),
-    image: existsSync(resolve(plateRel)) ? `${SITE}/plates/${meta.id}.jpg` : null,
+    image: plateUrl,
   });
 }
 
@@ -230,6 +246,10 @@ for (const meta of metas) {
 for (const [catId, cat] of Object.entries(categories)) {
   const outDir = join(DIST, catId);
   mkdirSync(outDir, { recursive: true });
+  const representative = itemsIn(catId, metas)[0];
+  const catPlateRel = representative ? `public/plates/${plateFile(representative.id)}` : null;
+  const catPlateUrl =
+    catPlateRel && existsSync(resolve(catPlateRel)) ? `${SITE}/plates/${plateFile(representative.id)}` : null;
   writeFileSync(
     join(outDir, 'index.html'),
     page({
@@ -237,10 +257,11 @@ for (const [catId, cat] of Object.entries(categories)) {
       description: cat.blurb ?? `${cat.title} — interactive 3D explainers.`,
       canonical: `${SITE}/${catId}`,
       ogType: 'website',
+      image: catPlateUrl ? { url: catPlateUrl, width: 720, height: 450 } : null,
       body: categoryBody(catId),
     }),
   );
-  sitemapUrls.push({ loc: `${SITE}/${catId}`, lastmod: lastmod('src/categories.js'), image: null });
+  sitemapUrls.push({ loc: `${SITE}/${catId}`, lastmod: lastmod('src/categories.js'), image: catPlateUrl });
 }
 
 // home page's own lastmod, from the source shell rather than the built one

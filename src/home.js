@@ -67,7 +67,7 @@ function socialDock() {
 function card(e, n) {
   return `
     <a class="ex-card" href="/${e.id}">
-      <img class="ex-shot" src="/plates/${e.id}.jpg" alt="" loading="lazy" decoding="async"
+      <img class="ex-shot" src="/plates/${e.id}-3d-animation.jpg" alt="" loading="lazy" decoding="async"
            width="720" height="450" />
       <span class="ex-plate">
         <span class="ex-no">${String(n).padStart(2, '0')}</span>

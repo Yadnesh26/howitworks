@@ -9,7 +9,9 @@
 // activate the step, wait for the camera fly-to to settle, then pause the loop
 // and seek it to a fixed lap fraction. Same command, same pixels.
 //
-// Output: public/plates/<id>.jpg (referenced as /plates/<id>.jpg, lazy-loaded)
+// Output: public/plates/<id>-3d-animation.jpg (referenced as
+// /plates/<id>-3d-animation.jpg, lazy-loaded). The suffix is deliberate —
+// see scripts/prerender.mjs's plateFile() — keep the two in sync.
 // Re-run after adding an explainer, or after any visual change to an existing
 // one — the plate is the only part of the library that goes stale on its own.
 import { chromium } from 'playwright';
@@ -127,7 +129,7 @@ for (const id of ids) {
     );
     await page.waitForTimeout(160);
 
-    await page.screenshot({ path: join(OUT, `${id}.jpg`), quality: 62, type: 'jpeg' });
+    await page.screenshot({ path: join(OUT, `${id}-3d-animation.jpg`), quality: 62, type: 'jpeg' });
     console.log(`ok   ${id}${ov.step || ov.frac ? `  (override: step ${step + 1})` : ''}`);
   } catch (e) {
     failed.push(id);

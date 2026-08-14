@@ -44,7 +44,8 @@ gotchas live there. This core file is the process; that file is the craft.
   `--sheet` stitches everything into one contact-sheet image.
 - **Library plate (the home-grid card image):** `node scripts/make-plates.mjs
   --only=<id>` — same deterministic capture technique as review-shots, one
-  clean shot with no page chrome, written to `public/plates/<id>.jpg`. A new
+  clean shot with no page chrome, written to
+  `public/plates/<id>-3d-animation.jpg`. A new
   explainer has NO plate until this runs once; Phase 3 step 6 below is where
   it happens — don't run it earlier than that, since a review-cycle fix could
   change the shot it captures.
