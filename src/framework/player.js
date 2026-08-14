@@ -24,7 +24,7 @@ export function mountExplainer(def, container) {
   container.innerHTML = `
     <div class="player" style="--accent:${def.accent ?? '#6ea8ff'}">
       <div class="canvas-holder"></div>
-      <a class="back-link" href="#">← library</a>
+      <a class="back-link" href="/">← library</a>
       <div class="rail"></div>
       <div class="scroll-hint">scroll<span>▾</span></div>
       <header class="player-hero">

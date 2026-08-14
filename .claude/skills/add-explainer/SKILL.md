@@ -42,6 +42,12 @@ gotchas live there. This core file is the process; that file is the craft.
   frozen pose). While iterating use `--steps` (changed steps only) and
   `--half` (cheaper to read); full-res full set only for the final pass.
   `--sheet` stitches everything into one contact-sheet image.
+- **Library plate (the home-grid card image):** `node scripts/make-plates.mjs
+  --only=<id>` — same deterministic capture technique as review-shots, one
+  clean shot with no page chrome, written to `public/plates/<id>.jpg`. A new
+  explainer has NO plate until this runs once; Phase 3 step 6 below is where
+  it happens — don't run it earlier than that, since a review-cycle fix could
+  change the shot it captures.
 - The IDE preview tab is compositor-throttled — never verify through it.
 
 ## Workflow
@@ -133,6 +139,16 @@ one has cost a full fix-and-re-review cycle in this repo:**
    the remaining findings to the user with a recommendation per item
    (cosmetic vs real) — the user decides. Post-cap fixes get verify.mjs
    only; a new review round happens ONLY if the user explicitly asks.
+6. **Generate the library plate**, once the visuals are settled (after the
+   review cap, whatever the verdict): `node scripts/make-plates.mjs
+   --only=<id>`. This is a mechanical step, not opt-in — a shipped explainer
+   with no plate leaves a broken/missing card on the home page grid, the same
+   class of loose end as a failing verify gate. Check the printed line for
+   `ok <id>`; if the default step-1 framing reads badly (dead space where the
+   desktop text panel would have sat — the plate hides that panel, so the
+   rule-of-thirds offset can look off-balance with nothing to its left), add
+   an entry to `OVERRIDES` in `scripts/make-plates.mjs` pointing at a
+   better-framed step, per the existing examples there, and re-run.
 - Crash rule: a cycle killed by infra (API error, session limit) may be
   re-spawned once via SendMessage — the agent resumes from its own
   transcript (captures + judgements intact); that resume does not count as a

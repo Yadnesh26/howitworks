@@ -17,6 +17,12 @@ assets, ever.
   server masks duplicate-identifier errors (blank page, zero console output),
   and the chunk list is the lazy-split proof:
   `& "C:\Program Files\nodejs\node.exe" node_modules/vite/bin/vite.js build`
+  `npm run build` also runs `scripts/prerender.mjs` afterward, which writes a
+  real `dist/<id>/index.html` per explainer/category (title, description,
+  canonical, step copy as text) plus `dist/sitemap.xml` — see
+  `docs/seo-plan.md` § F1. It reads step copy by regex off each `index.js`
+  SOURCE FILE rather than importing it, specifically so it can never trigger
+  the lazy-split regression in rule 2 below.
 - Explainer verification (THE gate — self-starts the dev server, runs the
   build, probes loops/clipping/labels/label-visibility/navigation in headless
   Chromium): `node scripts/verify.mjs <explainer-id>` → must print
@@ -43,7 +49,7 @@ assets, ever.
 
 | Path | Role |
 | --- | --- |
-| src/main.js | hash router: `#/` library · `#/<category>` · `#/<id>` |
+| src/main.js | path router: `/` library · `/<category>` · `/<id>` (falls back to legacy `#/<id>` hash for old links + tooling) |
 | src/categories.js | category tree; explainers list theirs in meta.js |
 | src/framework/registry.js | auto-globs explainer folders; eager meta.js, lazy index.js |
 | src/framework/player.js | step activation, camera fly-tos, panels, progress rail |

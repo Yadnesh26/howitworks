@@ -1,6 +1,7 @@
 import { getMetas } from './framework/index.js';
 import { categories, childrenOf, itemsIn, topLevel } from './categories.js';
 import { mountHeroMachine } from './home-hero.js';
+import { navigate } from './main.js';
 
 // The library. Two modes:
 //   mountHome(app)          — full library: hero mechanism + every category
@@ -65,7 +66,7 @@ function socialDock() {
 // carrying the stamped index number, the name and the one-line teardown.
 function card(e, n) {
   return `
-    <a class="ex-card" href="#/${e.id}">
+    <a class="ex-card" href="/${e.id}">
       <img class="ex-shot" src="/plates/${e.id}.jpg" alt="" loading="lazy" decoding="async"
            width="720" height="450" />
       <span class="ex-plate">
@@ -79,7 +80,7 @@ function card(e, n) {
 
 function folderCard(c, count) {
   return `
-    <a class="ex-card ex-folder" href="#/${c.id}" style="--dye:${c.accent ?? '#93a7b3'}">
+    <a class="ex-card ex-folder" href="/${c.id}" style="--dye:${c.accent ?? '#93a7b3'}">
       <span class="ex-plate">
         <span class="ex-name">${esc(c.title)}</span>
         <span class="ex-go" aria-hidden="true">&#8599;</span>
@@ -277,7 +278,7 @@ export function mountHome(container, catId = null) {
         return `
           <section class="ex-cat" style="--dye:${c.accent ?? '#93a7b3'}">
             <div class="ex-cat-head">
-              <h3><a href="#/${c.id}">${esc(c.title)}</a></h3>
+              <h3><a href="/${c.id}">${esc(c.title)}</a></h3>
               <span class="mono">${String(items.length).padStart(2, '0')}</span>
               <p>${esc(c.blurb ?? '')}</p>
             </div>
@@ -300,7 +301,7 @@ export function mountHome(container, catId = null) {
 
   const heroHtml = cat
     ? `<header class="cat-hero">
-         <a class="cat-back" href="#/">&#8592; the machines</a>
+         <a class="cat-back" href="/">&#8592; the machines</a>
          <h1>${esc(cat.title)}</h1>
          <p class="hero-deck">${esc(cat.blurb ?? '')}</p>
        </header>`
@@ -347,7 +348,7 @@ export function mountHome(container, catId = null) {
   container.innerHTML = `
     <div class="home">
       <header class="masthead">
-        <a class="wordmark" href="#/">what<b>D</b>stuff</a>
+        <a class="wordmark" href="/">what<b>D</b>stuff</a>
         <nav>
           <button class="search-trigger" id="open-finder" aria-label="Search the machines">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -563,7 +564,7 @@ export function mountHome(container, catId = null) {
   body.addEventListener('click', (e) => {
     const hit = e.target.closest('.hit');
     if (hit) {
-      location.hash = `#/${hit.dataset.id}`;
+      navigate(hit.dataset.id);
       closeFinder();
     }
   });
@@ -597,7 +598,7 @@ export function mountHome(container, catId = null) {
       paint();
     }
     if (e.key === 'Enter' && hits[sel]) {
-      location.hash = `#/${hits[sel].id}`;
+      navigate(hits[sel].id);
       closeFinder();
     }
   };

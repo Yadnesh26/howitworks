@@ -361,6 +361,10 @@ out; user's eyes are the aesthetic gate):
    framework imports must not statically drag explainer code into the
    shared chunk).
 6. Ship to dev server → user screenshot round for the aesthetic verdict.
+7. **Regenerate the library plate** — a polish pass changes materials/
+   geometry the plate already captured, so it goes stale silently (the home
+   grid keeps showing the pre-polish look). Once the user signs off:
+   `node scripts/make-plates.mjs --only=<id>`.
 
 ## Rollout order
 

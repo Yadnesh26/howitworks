@@ -49,12 +49,14 @@ link posted to X / LinkedIn / Reddit / WhatsApp renders as a blank rectangle.
 Add `og:title`, `og:description`, `og:image`, `twitter:card`, favicon.
 `make-thumbnails.mjs` already renders suitable images — wire one per explainer.
 
-**P2 · Real URLs.** Hash routing (`#/jet-engine`) means URL fragments never
-reach the server and are not indexed as separate pages — all explainers are one
-page to search. Move to History API routing and prerender a static HTML shell
-per explainer at build time (title, meta description, OG tags, step copy as real
-text), hydrating the canvas on load. `meta.js` already holds everything the
-generator needs. Add `sitemap.xml` + `robots.txt`.
+**P2 · Real URLs. ✅ Implemented 2026-08-14, not yet deployed.** Hash routing
+(`#/jet-engine`) meant URL fragments never reached the server and were not
+indexed as separate pages — all explainers were one page to search. Now on
+History API routing (hash form kept as a silent fallback for old links + the
+Playwright tooling), with a static HTML shell prerendered per
+explainer/category at build time (title, meta description, canonical, OG
+tags, step copy as real text). `sitemap.xml` + `robots.txt` also added. See
+`scripts/prerender.mjs` and `docs/seo-plan.md` § F1–F4.
 
 This is the only channel that compounds without posting, and it is the one
 entirely missing today.
@@ -133,7 +135,7 @@ this volume.
 | 1 | Deploy to a real domain | everything |
 | 2 | P1 — OG tags + favicon | all sharing |
 | 3 | P3 — analytics + UTMs in postkit | all measurement |
-| 4 | P2 — real URLs + prerender + sitemap | search, permanently |
+| 4 | P2 — real URLs + prerender + sitemap ✅ | search, permanently |
 | 5 | Email provider account, one list, tags | S1 |
 | 6 | S1 — end-of-explainer capture | — |
 | 7 | S2 — retag every existing video description | — |

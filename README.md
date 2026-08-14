@@ -29,7 +29,7 @@ import { defineExplainer } from '../../framework/index.js';
 import { buildThing } from './model.js';
 
 export default defineExplainer({
-  id: 'my-thing',                 // becomes the URL: #/my-thing
+  id: 'my-thing',                 // becomes the URL: /my-thing
   title: 'How a Thing Works',
   summary: 'Shown on the library card.',
   accent: '#8fd3ff',
