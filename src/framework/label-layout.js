@@ -40,9 +40,62 @@ const pillLeft = (ax, ex, tw) => (ex >= 0 ? ax + ex + GAP : ax + ex - tw - GAP);
 
 const _scratch = new THREE.Vector3();
 
+// --- depth occlusion: dim a callout when the part it's pointing at is
+// actually hidden behind something else from the current camera angle. CSS2D
+// otherwise always draws on top of the WebGL canvas regardless of what's in
+// front of it in 3D — a label for a part tucked behind housing renders at
+// full opacity floating in front of that housing, which is the single
+// biggest "DOM overlay, not really in the scene" tell against SOUL.md's
+// product-shot bar. Dim rather than hide: the reader should sense the part
+// is still there, just behind that surface, not have it flicker away.
+// Fraction of the camera→anchor distance treated as "still on the anchor's
+// own surface" rather than a real occluder in front of it — scale-relative
+// because explainers span wildly different absolute unit sizes (a resistor
+// vs. a coal power plant), so a fixed world-unit epsilon would be too loose
+// on tiny models and too tight on huge ones. Most callouts are parented to
+// the model's whole top-level group rather than the specific labelled part
+// (that's the common `addCallout` pattern across explainers), so walking
+// object ancestry to exclude "self" would exclude the entire model — i.e.
+// exactly the housing-hides-the-internal-part case this exists to catch.
+// Distance alone, with no ancestry check, is what actually works here.
+const OCCLUDE_EPS_FRAC = 0.035;
+const OCCLUDE_EPS_MIN = 0.01;
+const OCCLUDE_FADE = '0.32';
+const _rayOrigin = new THREE.Vector3();
+const _rayDir = new THREE.Vector3();
+const _worldPos = new THREE.Vector3();
+const _raycaster = new THREE.Raycaster();
+
+function isOccluded(camera, worldPos, occluders) {
+  _rayOrigin.copy(camera.position);
+  _rayDir.subVectors(worldPos, _rayOrigin);
+  const dist = _rayDir.length();
+  const eps = Math.max(OCCLUDE_EPS_MIN, dist * OCCLUDE_EPS_FRAC);
+  if (dist < eps * 2) return false;
+  _rayDir.divideScalar(dist);
+  _raycaster.set(_rayOrigin, _rayDir);
+  _raycaster.near = 0;
+  _raycaster.far = dist - eps;
+  return _raycaster.intersectObjects(occluders, false).length > 0;
+}
+
 export function declutterCallouts(scene, camera) {
   const items = [];
+  const occluders = [];
   scene.traverse((o) => {
+    if (o.isMesh) {
+      if (!o.visible || o.userData.noOcclude) return;
+      const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+      // a mostly-clear surface isn't a real occluder — a label seen through
+      // glass should stay legible. Two different "clear" encodings in this
+      // codebase: plain transparent+low-opacity glass, AND real refractive
+      // opticalGlass (parts.js), which renders via the transmission pass and
+      // deliberately sets `transparent: false` (see parts.js) so it does NOT
+      // show up under the ordinary opacity check below.
+      const clear = mat && ((mat.transparent && (mat.opacity ?? 1) <= 0.6) || mat.transmission > 0.3);
+      if (mat && !clear) occluders.push(o);
+      return;
+    }
     if (!o.isCSS2DObject || !o.visible || !o.element) return;
     const el = o.element;
     if (!el.classList.contains('callout') || el.style.display === 'none') return;
@@ -93,7 +146,10 @@ export function declutterCallouts(scene, camera) {
     // supply one (none in this codebase, but keep it a soft dependency)
     // still get the old DOM-rect behavior.
     if (camera) {
-      it.obj.getWorldPosition(_scratch).project(camera);
+      it.obj.getWorldPosition(_worldPos);
+      const occluded = isOccluded(camera, _worldPos, occluders);
+      it.el.style.opacity = occluded ? OCCLUDE_FADE : '';
+      _scratch.copy(_worldPos).project(camera);
       it.ax = frame.left + (_scratch.x * 0.5 + 0.5) * frame.width;
       it.ay = frame.top + (-_scratch.y * 0.5 + 0.5) * frame.height;
     } else {

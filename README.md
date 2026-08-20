@@ -1,4 +1,4 @@
-# howitworks
+# whatdstuff
 
 Interactive 3D explainers where **scroll drives the machine**. Built with
 [Three.js](https://threejs.org) (rendering) and [anime.js v4](https://animejs.com)

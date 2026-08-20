@@ -13,6 +13,12 @@
       "skillPath": "designing-beautiful-websites/SKILL.md",
       "computedHash": "8c5bd91e0a85c9dd07de4a2b42378020603ce878065ccb382b621004e1e15f62"
     },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "b146008599c31057cef1c145774cea5d5afb30e8f43fa802e47a4b461419aaaf"
+    },
     "humanizer": {
       "source": "blader/humanizer",
       "sourceType": "github",

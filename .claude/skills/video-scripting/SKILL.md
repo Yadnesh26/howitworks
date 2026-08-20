@@ -1,6 +1,6 @@
 ---
 name: video-scripting
-description: Write or improve the narration script for a howitworks explainer video — the hook, the retention structure, and the spoken voiceover in video.js. Use BEFORE writing/editing an explainer's video.js editorial, or whenever asked to make a script, hook, or narration punchier, more engaging, higher-retention, or easier to understand. Covers the retention spine (hook → loops → mechanism → stat → payoff → button), the professional formulas (ABT, open loops, Hook-Retain-Reward, SUCCESs), a worked before/after, and a pre-flight checklist. Hands the finished script to export-content; it does not render.
+description: Write or improve the narration script for a whatdstuff explainer video — the hook, the retention structure, and the spoken voiceover in video.js. Use BEFORE writing/editing an explainer's video.js editorial, or whenever asked to make a script, hook, or narration punchier, more engaging, higher-retention, or easier to understand. Covers the retention spine (hook → loops → mechanism → stat → payoff → button), the professional formulas (ABT, open loops, Hook-Retain-Reward, SUCCESs), a worked before/after, and a pre-flight checklist. Hands the finished script to export-content; it does not render.
 ---
 
 # Scripting an explainer video

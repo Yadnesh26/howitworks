@@ -32,7 +32,7 @@ export default {
   platforms: {
     shorts: {
       title: 'There’s no camera in this machine',
-      hashtags: ['#xray', '#physics', '#science', '#howitworks', '#engineering'],
+      hashtags: ['#xray', '#physics', '#science', '#whatdstuff', '#engineering'],
     },
   },
 

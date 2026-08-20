@@ -180,7 +180,7 @@ export default {
     },
     shorts: {
       title: "You're Losing 1,000 Battery Cycles",
-      hashtags: ['#batterylife', '#lithiumion', '#phonebattery', '#howitworks', '#techtips', '#science'],
+      hashtags: ['#batterylife', '#lithiumion', '#phonebattery', '#whatdstuff', '#techtips', '#science'],
     },
   },
 };

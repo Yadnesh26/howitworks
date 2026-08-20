@@ -1,9 +1,9 @@
 ---
 name: add-explainer
-description: Add a new 3D explainer to the howitworks site (e.g. "how an AC works"). Use whenever the user asks to add/build/create an explainer, a "how X works" page, or a new entry in the library, and when reworking/polishing an existing one. Covers the research-first realism workflow (search the real mechanism, build, validate against the reference), the defineExplainer API, procedural model conventions, seamless-loop timeline rules, and the verification routine.
+description: Add a new 3D explainer to the whatdstuff site (e.g. "how an AC works"). Use whenever the user asks to add/build/create an explainer, a "how X works" page, or a new entry in the library, and when reworking/polishing an existing one. Covers the research-first realism workflow (search the real mechanism, build, validate against the reference), the defineExplainer API, procedural model conventions, seamless-loop timeline rules, and the verification routine.
 ---
 
-# Add a new explainer to howitworks
+# Add a new explainer to whatdstuff
 
 ## Model Requirement (Cognitive Safeguard)
 **CRITICAL:** Building a new explainer requires complex 3D spatial reasoning, heavy procedural code generation, and strict adherence to framework rules. Before starting this task, remind the user that they must use a heavyweight/frontier model (e.g. Gemini 3.1 Pro, Claude Sonnet 5, or Claude Opus 4.8). If the user attempts to run this on a fast/small model (like Haiku or Fable), warn them heavily that the spatial math will likely fail before proceeding.

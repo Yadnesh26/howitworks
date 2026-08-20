@@ -330,9 +330,16 @@ for (const [si, shot] of shots.entries()) {
   // camera-move gap between them.
   const totalFrames = Math.round(shotDurations[si] * fps);
   const start = clock;
+  // Optional per-shot { speed } in video.js scales how fast the SCENE's own
+  // clock advances per output frame — output fps/duration are untouched, only
+  // how much of the model's loop (turntable spin, mechanism cycles) plays out
+  // per second of video. A slower hero turn for one shot without touching the
+  // step's own timeline duration in index.js (which would also slow the live
+  // interactive site).
+  const shotSpeed = shot.speed ?? 1;
 
   for (let f = 0; f < totalFrames; f++) {
-    await advance(frameMs);
+    await advance(frameMs * shotSpeed);
     // JPEG q98 (near-lossless) — ~3-4x faster to capture than PNG. At q98 the
     // dark-gradient posterizing is negligible, and the encode-time `gradfun`
     // deband (below) mops up any residual banding, so gradients stay smooth

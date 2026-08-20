@@ -1,6 +1,6 @@
 ---
 name: sound-design
-description: Design and generate the audio layer for a howitworks film or video — ElevenLabs sound-effect cues, the music bed, ducking, and the mix. Use when adding sfx to a film or short, when an export sounds thin/flat/amateur, when writing an sfxLibrary, or when asked to make a video sound more produced. Covers scripts/make-sfx.mjs and the mix chain in render-film.mjs.
+description: Design and generate the audio layer for a whatdstuff film or video — ElevenLabs sound-effect cues, the music bed, ducking, and the mix. Use when adding sfx to a film or short, when an export sounds thin/flat/amateur, when writing an sfxLibrary, or when asked to make a video sound more produced. Covers scripts/make-sfx.mjs and the mix chain in render-film.mjs.
 ---
 
 # Sound design

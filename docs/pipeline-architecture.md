@@ -1,4 +1,4 @@
-# howitworks Pipeline — Technical Architecture
+# whatdstuff Pipeline — Technical Architecture
 
 ## 0. Correcting the frame
 

@@ -45,6 +45,15 @@ const OVERRIDES = {
   // the sealed phone renders small and lost; the exploded electrode stack
   // fills the frame and actually shows what a touchscreen is.
   touchscreen: { step: 3 },
+  // step 1 is a flat phone lying on a flat plinth, and with the panel hidden
+  // the two slabs read as two phones. The enlarged module fills the frame with
+  // voice coil, springs and light cone — the thing worth clicking on.
+  'smartphone-camera': { step: 3 },
+  // step 1 is the sealed lobby wall — correct as an opening beat, but as a
+  // card it is a blank white wall with two shut doors and no machine in it.
+  // Step 2 ghosts the concrete and shows the whole thing: car, ropes, sheave,
+  // counterweight.
+  elevator: { step: 2 },
 };
 
 mkdirSync(OUT, { recursive: true });

@@ -1102,6 +1102,10 @@ body:has(.home)::after {
 .callout {
   pointer-events: none;
   user-select: none;
+  /* label-layout.js dims this (not display:none) when a raycast finds the
+     labelled part hidden behind something else, so it reads as "still
+     there, just behind that" rather than flickering out. */
+  transition: opacity 0.18s ease;
 }
 
 .callout::before {
@@ -1120,11 +1124,25 @@ body:has(.home)::after {
   position: absolute;
   left: 0;
   top: 0;
-  height: 1px;
-  transform-origin: 0 50%;
-  background: linear-gradient(90deg, rgba(232, 234, 240, 0.75), rgba(232, 234, 240, 0.15));
+  overflow: visible;
 }
 
+.callout-line-path {
+  fill: none;
+  stroke: rgba(232, 234, 240, 0.55);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+/* No card — a boxed pill (glass or flat) kept reading as a UI widget floating
+   over the shot rather than a mark ON it. Bare type sitting directly in the
+   scene, with a hairline rule underneath, is closer to a museum placard or a
+   press-kit caption: the TEXT is the label, not a container around it.
+   BUT plain text-shadow alone wasn't enough separation once several labels
+   cluster in one step (manual-gearbox step 2 flagged this) — with no edge at
+   all, the eye can't tell where one label ends and the next begins. A soft
+   edgeless scrim (radial, no border, fades to nothing) gives each label its
+   own footing without turning back into a card. */
 .callout-text {
   position: absolute;
   white-space: nowrap;
@@ -1132,30 +1150,35 @@ body:has(.home)::after {
   font-size: 17px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: var(--text);
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 11px;
-  padding: 5px 14px; /* +50% from 3px 9px */
-  backdrop-filter: blur(8px);
+  color: var(--text-bright, #fff);
+  padding: 3px 10px 7px;
+  border-bottom: 1.5px solid var(--accent, #8fd3ff);
+  background: radial-gradient(60% 90% at 50% 42%, rgba(8, 9, 13, 0.62), transparent 78%);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 /* focus/highlight (#3): the active step's part pulses so it's unmistakable.
    NB: never animate the pill's `transform` — labels.js sets it inline to
    position the pill; a keyframe transform would override that and misplace it.
-   Pulse box-shadow/colour on the pill and scale the DOT (::before) instead. */
+   Pulse the underline + a text glow, and scale the DOT (::before), instead. */
 .callout--active .callout-text {
-  border-color: var(--accent, #8fd3ff);
-  color: #fff;
   animation: calloutActive 1.3s ease-in-out infinite;
 }
 @keyframes calloutActive {
   0%,
   100% {
-    box-shadow: 0 0 6px -1px var(--accent, #8fd3ff);
+    border-bottom-color: var(--accent, #8fd3ff);
+    text-shadow:
+      0 1px 4px rgba(0, 0, 0, 0.9),
+      0 0 10px rgba(0, 0, 0, 0.7),
+      0 0 6px -1px var(--accent, #8fd3ff);
   }
   50% {
-    box-shadow: 0 0 16px 1px var(--accent, #8fd3ff);
+    border-bottom-color: #fff;
+    text-shadow:
+      0 1px 4px rgba(0, 0, 0, 0.9),
+      0 0 10px rgba(0, 0, 0, 0.7),
+      0 0 16px 1px var(--accent, #8fd3ff);
   }
 }
 .callout--active::before {
@@ -1573,8 +1596,7 @@ body:has(.home)::after {
     font-size: 12px;
     white-space: normal;
     max-width: 40vw;
-    padding: 4px 9px;
-    border-radius: 8px;
+    padding: 2px 6px 5px;
     line-height: 1.35;
   }
 

@@ -87,7 +87,7 @@ export default {
   platforms: {
     shorts: {
       title: 'Why your hard drive can NEVER touch its own disk',
-      hashtags: ['#harddrive', '#hdd', '#howitworks', '#engineering', '#tech', '#dataStorage'],
+      hashtags: ['#harddrive', '#hdd', '#whatdstuff', '#engineering', '#tech', '#dataStorage'],
     },
     // youtube/long-form fields intentionally omitted — long-form is out of
     // scope for this run (short-only), per the pipeline invocation's scope

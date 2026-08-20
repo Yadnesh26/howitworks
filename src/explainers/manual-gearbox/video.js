@@ -200,7 +200,7 @@ export default {
     youtube: {
       title: 'Manual Gearbox, Explained: Every Gear Is Already Spinning (3D Cutaway)',
       description:
-        "Inside a manual transmission, every forward gear is spinning all the time — even the ones you haven't selected. This 3D cutaway walks through exactly how a stick-shift gearbox works: the layshaft and mainshaft, why first gear triples your engine's twisting force, how constant-mesh gears freewheel until they're needed, how a brass synchro ring matches speeds before the sleeve locks a gear on, why reverse is the one gear that whines, and what your hand is actually doing every time you shift.\n\nTimestamps and chapters follow the mechanism step by step, ending with a full run through all five gears.\n\n#howitworks #manualtransmission #engineering",
+        "Inside a manual transmission, every forward gear is spinning all the time — even the ones you haven't selected. This 3D cutaway walks through exactly how a stick-shift gearbox works: the layshaft and mainshaft, why first gear triples your engine's twisting force, how constant-mesh gears freewheel until they're needed, how a brass synchro ring matches speeds before the sleeve locks a gear on, why reverse is the one gear that whines, and what your hand is actually doing every time you shift.\n\nTimestamps and chapters follow the mechanism step by step, ending with a full run through all five gears.\n\n#whatdstuff #manualtransmission #engineering",
       tags: [
         'manual gearbox',
         'manual transmission',
@@ -216,7 +216,7 @@ export default {
     },
     shorts: {
       title: 'Every gear in here is ALREADY spinning 😮',
-      hashtags: ['#howitworks', '#manualgearbox', '#stickshift', '#cars', '#engineering', '#shorts'],
+      hashtags: ['#whatdstuff', '#manualgearbox', '#stickshift', '#cars', '#engineering', '#shorts'],
     },
   },
 };

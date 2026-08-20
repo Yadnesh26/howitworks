@@ -144,7 +144,7 @@ Fully procedural 3D — every part in this animation is built from code, no scan
     shorts: {
       title: "Your fridge doesn't make cold — it steals heat",
       hashtags: [
-        '#howitworks',
+        '#whatdstuff',
         '#refrigerator',
         '#engineering',
         '#science',

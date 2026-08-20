@@ -1,4 +1,4 @@
-// Mechanical verification gates for a howitworks explainer — ONE command that
+// Mechanical verification gates for a whatdstuff explainer — ONE command that
 // codifies every hand-rolled Playwright probe this repo used to rewrite per
 // explainer. Green output here means the mechanics are proven; the
 // explainer-reviewer agent receives this report and skips mechanics entirely,

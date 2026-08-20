@@ -329,10 +329,14 @@ for (const meta of metas) {
 }
 
 // --- write category pages ---------------------------------------------------
+let catPages = 0;
 for (const [catId, cat] of Object.entries(categories)) {
+  const representative = itemsIn(catId, metas)[0];
+  // A category no explainer claims yet renders as nothing on the home page —
+  // don't ship it an empty static page or a sitemap entry pointing at one.
+  if (!representative) continue;
   const outDir = join(DIST, catId);
   mkdirSync(outDir, { recursive: true });
-  const representative = itemsIn(catId, metas)[0];
   const catPlateRel = representative ? `public/plates/${plateFile(representative.id)}` : null;
   const catPlateUrl =
     catPlateRel && existsSync(resolve(catPlateRel)) ? `${SITE}/plates/${plateFile(representative.id)}` : null;
@@ -348,6 +352,7 @@ for (const [catId, cat] of Object.entries(categories)) {
     }),
   );
   sitemapUrls.push({ loc: `${SITE}/${catId}`, lastmod: lastmod('src/categories.js'), image: catPlateUrl });
+  catPages += 1;
 }
 
 // home page's own lastmod, from the source shell rather than the built one
@@ -371,5 +376,5 @@ ${sitemapUrls
 `;
 writeFileSync(join(DIST, 'sitemap.xml'), sitemapXml);
 
-console.log(`prerendered ${metas.length} explainer pages + ${Object.keys(categories).length} category pages`);
+console.log(`prerendered ${metas.length} explainer pages + ${catPages} category pages`);
 console.log(`wrote dist/sitemap.xml (${sitemapUrls.length} urls)`);

@@ -1,6 +1,6 @@
 ---
 name: export-content
-description: Export a howitworks explainer as publishable video content — a 9:16 short and a 16:9 narrated long-form video. Use when the user asks to export/render/make a video, short, reel, or YouTube version of an explainer. Covers writing the editorial layer (hooks, narration in video.js), the deterministic render pipeline (export-video.mjs), TTS narration, and quality review of the output.
+description: Export a whatdstuff explainer as publishable video content — a 9:16 short and a 16:9 narrated long-form video. Use when the user asks to export/render/make a video, short, reel, or YouTube version of an explainer. Covers writing the editorial layer (hooks, narration in video.js), the deterministic render pipeline (export-video.mjs), TTS narration, and quality review of the output.
 ---
 
 # Export an explainer as video content

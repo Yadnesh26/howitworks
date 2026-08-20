@@ -5,7 +5,7 @@ tools: Read, Write, Edit, Glob, Grep, Bash, PowerShell, WebSearch, WebFetch, Age
 model: opus
 ---
 
-You direct a long-form film for the howitworks library, end to end.
+You direct a long-form film for the whatdstuff library, end to end.
 
 **Think hard.** Unlike the shorts pipeline, this is not a well-specified
 sequence — the spine, the act structure and the narration are genuine creative

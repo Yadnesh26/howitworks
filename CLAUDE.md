@@ -1,4 +1,4 @@
-# howitworks
+# whatdstuff
 
 Voice, values, and the quality bar live in SOUL.md — read it before writing
 any user-facing copy (step text, summaries, hooks, narration) or judging

@@ -1,6 +1,6 @@
 ---
 name: explainer-to-video
-description: Run the complete howitworks pipeline end to end — build the explainer if it doesn't exist, verify it, review it, script it, narrate it, and render both the 9:16 short and the 16:9 long-form video. Use when the user says "run <topic>", asks for the full/end-to-end pipeline, or wants an explainer taken all the way to finished MP4s in one go. Orchestrates add-explainer → verify → review-explainer → video-scripting → export-content; it does not replace them.
+description: Run the complete whatdstuff pipeline end to end — build the explainer if it doesn't exist, verify it, review it, script it, narrate it, and render both the 9:16 short and the 16:9 long-form video. Use when the user says "run <topic>", asks for the full/end-to-end pipeline, or wants an explainer taken all the way to finished MP4s in one go. Orchestrates add-explainer → verify → review-explainer → video-scripting → export-content; it does not replace them.
 ---
 
 # Explainer → video, end to end

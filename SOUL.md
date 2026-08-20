@@ -1,4 +1,4 @@
-# The soul of howitworks
+# The soul of whatdstuff
 
 What this project believes and how it sounds. CLAUDE.md says how to work;
 this file says what good looks like. Read it before writing any user-facing

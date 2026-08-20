@@ -1,6 +1,6 @@
 ---
 name: polish-explainer
-description: Raise an existing howitworks explainer to premium product-shot fidelity — physical material upgrades (anisotropy, real transmission glass, clearcoat smudges, sheen, iridescence), filleted/greebled geometry detail, imperfection maps, and per-step cinematography (depth of field). Use when the user asks to polish, add realism/detail, upgrade graphics quality, or run a "fidelity pass" on an explainer that already works. Techniques are marked VALIDATED (proven in this codebase) or CANDIDATE (untested here — verify, then promote).
+description: Raise an existing whatdstuff explainer to premium product-shot fidelity — physical material upgrades (anisotropy, real transmission glass, clearcoat smudges, sheen, iridescence), filleted/greebled geometry detail, imperfection maps, and per-step cinematography (depth of field). Use when the user asks to polish, add realism/detail, upgrade graphics quality, or run a "fidelity pass" on an explainer that already works. Techniques are marked VALIDATED (proven in this codebase) or CANDIDATE (untested here — verify, then promote).
 ---
 
 # Fidelity pass: premium product-shot quality

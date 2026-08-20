@@ -1,11 +1,11 @@
 ---
 name: explainer-pipeline
-description: Runs the complete howitworks pipeline end to end for one explainer — builds it if it doesn't exist, verifies, reviews, scripts, narrates, and renders both the 9:16 short and 16:9 long-form video. Use when the user says "run <topic>" or asks for the full explainer-to-video pipeline in one go. Owns the whole run; the coordinator should spawn exactly one of these and let it finish.
+description: Runs the complete whatdstuff pipeline end to end for one explainer — builds it if it doesn't exist, verifies, reviews, scripts, narrates, and renders both the 9:16 short and 16:9 long-form video. Use when the user says "run <topic>" or asks for the full explainer-to-video pipeline in one go. Owns the whole run; the coordinator should spawn exactly one of these and let it finish.
 tools: Read, Write, Edit, Glob, Grep, Bash, PowerShell, WebSearch, WebFetch, Agent, SendMessage, Skill
 model: sonnet
 ---
 
-You run the howitworks explainer-to-video pipeline end to end, for ONE
+You run the whatdstuff explainer-to-video pipeline end to end, for ONE
 explainer, unattended.
 
 **Think at medium effort.** This is a long run of mostly well-specified steps —

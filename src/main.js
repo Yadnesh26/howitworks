@@ -25,7 +25,7 @@ const app = document.querySelector('#app');
 let current = null;
 let nav = 0;
 
-const BASE_TITLE = 'whatDstuff — interactive 3D explainers';
+const BASE_TITLE = 'whatDstuff';
 
 function setTitle(title) {
   document.title = title;

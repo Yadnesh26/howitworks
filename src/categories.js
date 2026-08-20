@@ -24,6 +24,11 @@ export const categories = {
     blurb: 'The handful of components hiding inside every circuit.',
     accent: '#b28dff',
   },
+  infrastructure: {
+    title: 'Infrastructure',
+    blurb: 'Buildings, bridges and the machines hidden inside them.',
+    accent: '#c9a87c',
+  },
   power: {
     title: 'Power & the Grid',
     blurb: 'How electricity is made, stepped up, and carried to your wall.',
@@ -43,6 +48,11 @@ export const categories = {
     title: 'Space & the Cosmos',
     blurb: 'Things you can never take apart, running on physics you can only watch.',
     accent: '#ffb454',
+  },
+  matter: {
+    title: 'Matter & Particles',
+    blurb: 'What everything else on this site is built out of, down where the rules change.',
+    accent: '#5ec8ff',
   },
 };
 

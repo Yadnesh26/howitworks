@@ -1,6 +1,6 @@
 ---
 name: review-explainer
-description: Independent quality review of a howitworks explainer — visual review from real headless-browser screenshots (scripts/review-shots.mjs), independent mechanism fact-check against internet references, and the mechanical verification gates. Use when asked to review/QA/check an explainer, and after any add-explainer or polish-explainer pass before user sign-off. Best run in a FRESH context (the explainer-reviewer agent) — a builder reviewing its own work in the same context rationalizes its own mistakes.
+description: Independent quality review of a whatdstuff explainer — visual review from real headless-browser screenshots (scripts/review-shots.mjs), independent mechanism fact-check against internet references, and the mechanical verification gates. Use when asked to review/QA/check an explainer, and after any add-explainer or polish-explainer pass before user sign-off. Best run in a FRESH context (the explainer-reviewer agent) — a builder reviewing its own work in the same context rationalizes its own mistakes.
 ---
 
 # Review an explainer
